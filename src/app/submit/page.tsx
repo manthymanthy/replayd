@@ -3,14 +3,12 @@
 import { useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-console.log('SUBMIT LIVE BUILD', new Date().toISOString());
-
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// opzionale: consenti solo YouTube/Twitch (puoi estendere in futuro)
+// per ora accettiamo solo YouTube/Twitch
 const SAFE_URL = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be|clips\.twitch\.tv|www\.twitch\.tv\/clips)/i;
 
 export default function SubmitPage() {
@@ -20,11 +18,10 @@ export default function SubmitPage() {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  async function handleSend() {
     setMsg(null);
 
-    // Validazione molto semplice
+    // validazioni minime
     if (!url || !title) {
       setMsg('Inserisci almeno URL e Titolo.');
       return;
@@ -42,7 +39,7 @@ export default function SubmitPage() {
           url,
           title,
           author_name: author || null, // facoltativo
-          // game, votes, status hanno default a DB
+          // game / votes / status: hanno default a DB
         });
 
       if (error) {
@@ -61,9 +58,10 @@ export default function SubmitPage() {
 
   return (
     <main style={{ display: 'grid', gap: 16, maxWidth: 760, margin: '40px auto' }}>
-     <h1>Invia una clip (URL) — v3</h1>
+      <h1>Invia una clip (URL)</h1>
 
-      <form onSubmit={onSubmit} style={{ display: 'grid', gap: 12 }}>
+      {/* NESSUN <form> → nessun submit intercettabile */}
+      <div style={{ display: 'grid', gap: 12 }}>
         <input
           value={url}
           onChange={(e) => setUrl(e.target.value)}
@@ -84,7 +82,9 @@ export default function SubmitPage() {
         />
 
         <button
+          type="button"                // <-- niente submit
           disabled={loading}
+          onClick={handleSend}         // <-- invio manuale
           style={{
             padding: '12px 16px',
             borderRadius: 8,
@@ -97,7 +97,7 @@ export default function SubmitPage() {
         >
           {loading ? 'Invio…' : 'Invia clip'}
         </button>
-      </form>
+      </div>
 
       <p style={{ opacity: 0.7, marginTop: 8 }}>
         MVP: salviamo in DB con RLS e validazione URL base. Anti-spam avanzato e moderazione arriveranno dopo.
