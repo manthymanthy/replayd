@@ -61,7 +61,7 @@ export default function SubmitPage() {
 
   return (
     <main style={{ display: 'grid', gap: 16, maxWidth: 760, margin: '40px auto' }}>
-      <h1>Invia una clip (URL)</h1>
+      <h1>Invia una clip (URL) — v2</h1>
 
       <form onSubmit={onSubmit} style={{ display: 'grid', gap: 12 }}>
         <input
