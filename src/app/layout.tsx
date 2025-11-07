@@ -27,7 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             --text:#f1f1f1;
             --line:#1a1a1a;
             --line-strong:#2a2a2a;
-            --accent: #ffffff; /* tutto bianco, nerd */
+            --accent: #ffffff; /* tutto bianco,  */
             --radius:12px;
           }
           *{box-sizing:border-box}
@@ -43,7 +43,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }
           a{color:inherit;text-decoration:none}
           img{display:block;max-width:100%}
-          /* Focus nerd-clean */
+          /* Focus clean */
           :focus-visible{outline:2px solid #fff; outline-offset:2px}
 
           .shell{display:flex; min-height:100%; flex-direction:column}
