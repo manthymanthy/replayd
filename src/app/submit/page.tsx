@@ -8,77 +8,59 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// YouTube / Twitch only (per ora)
+// Accept only YouTube/Twitch links for now
 const SAFE_URL = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be|clips\.twitch\.tv|www\.twitch\.tv\/clips)/i;
-
-// Preset giochi (puoi ampliare in futuro)
-const GAME_PRESETS = [
-  { key: 'arc', label: 'ARC Raiders' },
-  { key: 'bf6', label: 'Battlefield 6' },
-  { key: 'cod', label: 'Call of Duty' },
-];
 
 export default function SubmitPage() {
   const [url, setUrl] = useState('');
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
-
-  // game
-  const [gamePreset, setGamePreset] = useState<string>('arc'); // default ARC
-  const [gameCustom, setGameCustom] = useState<string>('');
-  const gameIsCustom = useMemo(() => gamePreset === 'custom', [gamePreset]);
-
   const [loading, setLoading] = useState(false);
-  const [msg, setMsg] = useState<{type:'ok'|'err'; text:string} | null>(null);
+  const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
-  function normalizeGame(raw: string): string {
-    // Salviamo lowercase per far funzionare l'eq('game', gameFilter) del feed
-    return raw.trim().toLowerCase();
-  }
+  const trimmed = {
+    url: url.trim(),
+    title: title.trim(),
+    author: author.trim(),
+  };
+
+  const valid = {
+    url: SAFE_URL.test(trimmed.url),
+    title: trimmed.title.length >= 3,
+    author: trimmed.author.length >= 2,
+  };
+
+  const formValid = useMemo(() => valid.url && valid.title && valid.author, [valid.url, valid.title, valid.author]);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setMsg(null);
 
-    if (!url || !title) {
-      setMsg({ type: 'err', text: 'Please provide at least URL and Title.' });
+    if (!formValid) {
+      // Show a compact error if something is missing/invalid
+      if (!trimmed.url) return setMsg({ type: 'err', text: 'URL is required.' });
+      if (!valid.url) return setMsg({ type: 'err', text: 'URL must be a valid YouTube or Twitch link.' });
+      if (!valid.title) return setMsg({ type: 'err', text: 'Title is required (min 3 characters).' });
+      if (!valid.author) return setMsg({ type: 'err', text: 'Author/Nick is required (min 2 characters).' });
       return;
-    }
-    if (!SAFE_URL.test(url)) {
-      setMsg({ type: 'err', text: 'For now we only accept YouTube or Twitch links.' });
-      return;
-    }
-
-    // Risolvi valore gioco finale
-    let gameValue = '';
-    if (gameIsCustom) {
-      if (!gameCustom.trim()) {
-        setMsg({ type: 'err', text: 'Please enter a game name or choose a preset.' });
-        return;
-      }
-      gameValue = normalizeGame(gameCustom);
-    } else {
-      const preset = GAME_PRESETS.find(p => p.key === gamePreset);
-      gameValue = normalizeGame(preset ? preset.label : gamePreset);
     }
 
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('clips')
-        .insert({
-          url,
-          title,
-          author_name: author || null,
-          game: gameValue, // ⬅️ salva il gioco normalizzato
-          // votes/status gestiti dal DB
-        });
+      const { error } = await supabase.from('clips').insert({
+        url: trimmed.url,
+        title: trimmed.title,
+        author_name: trimmed.author,
+        // game/votes/status have DB defaults
+      });
 
-      if (error) setMsg({ type: 'err', text: `Save failed: ${error.message}` });
-      else {
+      if (error) {
+        setMsg({ type: 'err', text: `Save failed: ${error.message}` });
+      } else {
         setMsg({ type: 'ok', text: 'Clip submitted! Check the “clips” table on Supabase.' });
-        setUrl(''); setTitle(''); setAuthor('');
-        setGamePreset('arc'); setGameCustom('');
+        setUrl('');
+        setTitle('');
+        setAuthor('');
       }
     } finally {
       setLoading(false);
@@ -89,61 +71,53 @@ export default function SubmitPage() {
     <section className="page">
       <h1 className="h1">Submit a clip (URL)</h1>
 
-      <form onSubmit={onSubmit} className="stack">
-        <input
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          placeholder="YouTube/Twitch URL"
-          className="field"
-        />
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Title"
-          className="field"
-        />
-        <input
-          value={author}
-          onChange={(e) => setAuthor(e.target.value)}
-          placeholder="Author / Nick (optional)"
-          className="field"
-        />
-
-        {/* GAME SELECT */}
-        <div className="gameRow">
-          <label className="label">Game</label>
-          <div className="gameInputs">
-            <select
-              className="field"
-              value={gamePreset}
-              onChange={(e) => setGamePreset(e.target.value)}
-              aria-label="Game preset"
-            >
-              {GAME_PRESETS.map(p => (
-                <option key={p.key} value={p.key}>{p.label}</option>
-              ))}
-              <option value="custom">Other…</option>
-            </select>
-
-            {gameIsCustom && (
-              <input
-                className="field"
-                value={gameCustom}
-                onChange={(e) => setGameCustom(e.target.value)}
-                placeholder="Type a game (e.g., apex legends)"
-                aria-label="Custom game"
-              />
-            )}
-          </div>
+      <form onSubmit={onSubmit} className="stack" noValidate>
+        <div className="fieldWrap">
+          <input
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="YouTube/Twitch URL"
+            className={`field ${url && !valid.url ? 'field--err' : ''}`}
+            required
+            inputMode="url"
+            aria-invalid={url ? String(!valid.url) : undefined}
+          />
+          {url && !valid.url && <p className="hint hint--err">Enter a valid YouTube/Twitch link.</p>}
         </div>
 
-        <button className="btn" disabled={loading}>
+        <div className="fieldWrap">
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Title"
+            className={`field ${title && !valid.title ? 'field--err' : ''}`}
+            required
+            minLength={3}
+            aria-invalid={title ? String(!valid.title) : undefined}
+          />
+          {title && !valid.title && <p className="hint hint--err">Title must be at least 3 characters.</p>}
+        </div>
+
+        <div className="fieldWrap">
+          <input
+            value={author}
+            onChange={(e) => setAuthor(e.target.value)}
+            placeholder="Author / Nick"
+            className={`field ${author && !valid.author ? 'field--err' : ''}`}
+            required
+            minLength={2}
+            aria-invalid={author ? String(!valid.author) : undefined}
+          />
+          {author && !valid.author && <p className="hint hint--err">Author/Nick must be at least 2 characters.</p>}
+        </div>
+
+        <button className="btn" disabled={loading || !formValid}>
           {loading ? 'Sending…' : 'Submit clip'}
         </button>
       </form>
 
       <p className="muted">
-        MVP: we store to DB with RLS and basic URL validation. Advanced anti-spam and moderation will come next.
+        MVP: RLS + safe URL validation. Anti-spam & moderation next.
       </p>
 
       {msg && (
@@ -156,21 +130,21 @@ export default function SubmitPage() {
         .page{ display:grid; gap:16px; }
         .h1{ font-size:22px; font-weight:800; letter-spacing:.02em; margin:4px 0 6px }
         .stack{ display:grid; gap:12px; max-width:720px }
+
+        .fieldWrap{ display:grid; gap:6px }
         .field{
           padding:12px 14px;
           border-radius:10px;
           border:1px solid var(--line);
           background:var(--panel);
           color:var(--text);
+          outline: none;
         }
         .field:hover{ border-color:var(--line-strong) }
+        .field--err{ border-color:#7b2b2b; box-shadow: 0 0 0 2px rgba(123,43,43,.15) }
 
-        .gameRow{ display:grid; gap:8px }
-        .label{ font-size:12px; opacity:.8 }
-        .gameInputs{ display:grid; gap:8px; grid-template-columns: 260px 1fr; align-items:center }
-        @media (max-width:700px){
-          .gameInputs{ grid-template-columns: 1fr; }
-        }
+        .hint{ font-size:12px; opacity:.75 }
+        .hint--err{ color:#ff6b6b; opacity:1 }
 
         .btn{
           padding:12px 16px; border-radius:10px;
@@ -178,7 +152,7 @@ export default function SubmitPage() {
           background:color-mix(in oklab, var(--panel) 88%, #fff 12%);
           color:#fff; font-weight:800; letter-spacing:.02em;
           cursor:pointer;
-          transition:transform .06s ease, border-color .12s ease;
+          transition:transform .06s ease, border-color .12s ease, opacity .12s ease;
         }
         .btn:hover{ border-color:#3a3a3a; transform:translateY(-1px) }
         .btn:disabled{ opacity:.6; cursor:not-allowed; transform:none }
