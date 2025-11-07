@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { parseClip } from "@/lib/parseClip";
+import { parseClip } from "../lib/parseClip";
 
 export default function PlayerModal({
   url,
