@@ -54,23 +54,23 @@ export default async function Page() {
       {/* HERO */}
       <header className="hero">
         <h1 className="brand">R&nbsp;E&nbsp;P&nbsp;L&nbsp;A&nbsp;Y&nbsp;D</h1>
-        <p className="tag">Le migliori giocate FPS, curate dalla community.</p>
+        <p className="tag">The sharpest FPS highlights — curated by the community.</p>
       </header>
 
       {/* SECTIONS */}
       <section className="block">
-        <h2 className="h2">Trending (ultime 24h)</h2>
-        <FeedListClient rows={trending} empty="Ancora niente nelle ultime 24 ore." />
+        <h2 className="h2">Trending (last 24h)</h2>
+        <FeedListClient rows={trending} empty="Nothing in the last 24 hours yet." />
       </section>
 
       <section className="block">
         <h2 className="h2">Fresh drops</h2>
-        <FeedListClient rows={fresh} empty="Le clip più nuove appariranno qui." />
+        <FeedListClient rows={fresh} empty="New clips will appear here." />
       </section>
 
       <section className="block">
-        <h2 className="h2">Top settimana</h2>
-        <FeedListClient rows={topWeek} empty="Appena ci saranno clip votate, le trovi qui." />
+        <h2 className="h2">Top this week</h2>
+        <FeedListClient rows={topWeek} empty="Once clips get votes, they’ll show up here." />
       </section>
 
       <style dangerouslySetInnerHTML={{ __html: `
