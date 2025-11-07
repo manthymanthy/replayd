@@ -29,10 +29,9 @@ function timeAgo(s: string){
 }
 function getThumb(url: string){
   const p = parseClip(url);
-  if (p.kind === "youtube") {
-    return `https://i.ytimg.com/vi/${p.id}/hqdefault.jpg`;
-  }
-  return null; // fallback handled below
+  if (p.kind === "youtube") return `https://i.ytimg.com/vi/${p.id}/hqdefault.jpg`;
+  // fallback minimal (favicon)
+  try { return `${new URL(url).origin}/favicon.ico`; } catch { return "/favicon.ico"; }
 }
 
 export default function LeaderboardClient({ rows }: { rows: Row[] }) {
@@ -40,105 +39,154 @@ export default function LeaderboardClient({ rows }: { rows: Row[] }) {
   const [hoverUrl, setHoverUrl] = useState<string | null>(firstUrl);
   const [openUrl, setOpenUrl] = useState<string | null>(null);
 
+  // Keep preview valid if rows change
   useEffect(() => { if (!hoverUrl && firstUrl) setHoverUrl(firstUrl); }, [firstUrl, hoverUrl]);
 
   const preview = useMemo(() => {
     if (!hoverUrl) return null;
-    const thumb = getThumb(hoverUrl);
-    return { thumb, url: hoverUrl };
+    return { thumb: getThumb(hoverUrl), url: hoverUrl };
   }, [hoverUrl]);
 
   return (
     <>
-      <section className="lb__grid">
-        {/* Left sticky preview */}
-        <aside className="lb__preview">
-          <div className="lb__previewBox">
+      <section className="arc__grid">
+        {/* Sticky big preview (left) */}
+        <aside className="arc__preview">
+          <div className="arc__screen">
             {preview?.thumb ? (
               <img src={preview.thumb} alt="Preview" />
             ) : (
-              <div className="lb__placeholder">
-                <div className="dot" />
+              <div className="arc__placeholder">
+                <div className="pixeldot" />
                 <div>Hover a clip to preview</div>
               </div>
             )}
           </div>
-          <div className="lb__hint">Hover for preview · Click to play</div>
+          <div className="arc__hint">Hover for preview · Click to play</div>
         </aside>
 
-        {/* Ranked list */}
-        <div className="lb__list">
+        {/* Ranked list (right) — arcade rows with per-row thumbnail */}
+        <div className="arc__list">
           {rows.length === 0 && (
-            <div className="lb__empty">No ranked clips yet.</div>
+            <div className="arc__empty">No ranked clips yet.</div>
           )}
 
-          {rows.map((r, i) => (
-            <button
-              key={r.id}
-              className="lb__row"
-              onMouseEnter={() => setHoverUrl(r.url)}
-              onFocus={() => setHoverUrl(r.url)}
-              onClick={() => setOpenUrl(r.url)}
-              title="Play"
-            >
-              <div className="lb__rank">#{i + 1}</div>
-              <div className="lb__info">
-                <div className="lb__title">{r.title || "Untitled"}</div>
-                <div className="lb__meta">
-                  {r.votes ?? 0} pts · {domainFrom(r.url)}
-                  {r.author_name ? ` · ${r.author_name}` : ""} · {timeAgo(r.created_at)}
+          {rows.map((r, i) => {
+            const nick = r.author_name?.trim() || "Unknown Player";
+            const thumb = getThumb(r.url);
+            return (
+              <button
+                key={r.id}
+                className="arc__row"
+                onMouseEnter={() => setHoverUrl(r.url)}
+                onFocus={() => setHoverUrl(r.url)}
+                onClick={() => setOpenUrl(r.url)}
+                title="Play"
+              >
+                <div className="arc__rank">#{String(i + 1).padStart(2, "0")}</div>
+
+                <div className="arc__who">
+                  <div className="arc__nick">{nick}</div>
+                  <div className="arc__meta">
+                    {r.votes ?? 0} pts · {domainFrom(r.url)} · {timeAgo(r.created_at)}
+                  </div>
+                  <div className="arc__title" title={r.title || ""}>
+                    {r.title || "Untitled"}
+                  </div>
                 </div>
-              </div>
-            </button>
-          ))}
+
+                <img
+                  className="arc__thumb"
+                  src={thumb}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                />
+              </button>
+            );
+          })}
         </div>
       </section>
 
       <PlayerModal url={openUrl} onClose={() => setOpenUrl(null)} />
 
       <style dangerouslySetInnerHTML={{ __html: `
-        .lb__grid{
-          display:grid; grid-template-columns: 360px 1fr; gap:16px;
+        /* Grid: preview left, list right */
+        .arc__grid{
+          display:grid; grid-template-columns: 420px 1fr; gap:18px;
         }
-        @media (max-width: 980px){
-          .lb__grid{ grid-template-columns: 1fr; }
-          .lb__preview{ position:relative; top:auto }
+        @media (max-width: 1100px){
+          .arc__grid{ grid-template-columns: 1fr; }
+          .arc__preview{ position:relative; top:auto }
         }
-        .lb__preview{
+
+        /* Big sticky preview */
+        .arc__preview{
           position:sticky; top:18px; align-self:start;
           display:grid; gap:10px;
         }
-        .lb__previewBox{
+        .arc__screen{
           background:var(--panel); border:1px solid var(--line-strong);
-          border-radius:12px; overflow:hidden; aspect-ratio:16/9;
+          border-radius:14px; overflow:hidden; aspect-ratio:16/9;
           display:grid; place-items:center;
+          box-shadow: 0 0 0 2px rgba(255,255,255,.03) inset,
+                      0 10px 30px rgba(0,0,0,.35);
         }
-        .lb__previewBox img{ width:100%; height:100%; object-fit:cover; display:block }
-        .lb__placeholder{ color:#aaa; display:grid; place-items:center; gap:8px; font-size:14px }
-        .dot{ width:8px; height:8px; border-radius:999px; background:#7f7f7f; opacity:.9 }
+        .arc__screen img{ width:100%; height:100%; object-fit:cover; display:block }
+        .arc__placeholder{ color:#aaa; display:grid; place-items:center; gap:8px; font-size:14px }
+        .pixeldot{ width:8px; height:8px; border-radius:2px; background:#70f; box-shadow:0 0 12px #70f90; opacity:.9 }
 
-        .lb__hint{ opacity:.7; font-size:12px }
-        .lb__list{
-          border:1px solid var(--line); border-radius:12px; overflow:hidden; background:var(--panel);
-        }
-        .lb__row{
-          width:100%; display:grid; grid-template-columns: 76px 1fr; gap:12px;
-          align-items:center; padding:14px 14px; border:0; background:transparent;
-          border-bottom:1px solid var(--line); color:inherit; text-align:left; cursor:pointer;
-          transition: background .08s ease, border-color .12s ease;
-        }
-        .lb__row:hover{ background:#111; border-color:var(--line-strong) }
-        .lb__row:last-child{ border-bottom:none }
+        .arc__hint{ opacity:.7; font-size:12px }
 
-        .lb__rank{
-          font-weight:900; letter-spacing:.06em; color:#fff; opacity:.9;
-          font-size:18px; text-align:center;
+        /* List container */
+        .arc__list{
+          border:1px solid var(--line); border-radius:14px; overflow:hidden; background:var(--panel);
         }
-        .lb__info{ min-width:0; display:grid; gap:4px }
-        .lb__title{ font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
-        .lb__meta{ font-size:12px; color:#a6a6a6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+        .arc__empty{ padding:24px; text-align:center; color:#a6a6a6 }
 
-        .lb__empty{ padding:22px; text-align:center; color:#a6a6a6 }
+        /* Arcade row */
+        .arc__row{
+          width:100%; display:grid;
+          grid-template-columns: 92px 1fr 180px; gap:12px;
+          align-items:center; padding:14px 14px;
+          border:0; background:transparent; color:inherit; text-align:left; cursor:pointer;
+          border-bottom:1px solid var(--line);
+          transition: background .06s ease, border-color .12s ease, transform .06s ease;
+        }
+        .arc__row:hover{ background:#101010; border-color:var(--line-strong) }
+        .arc__row:active{ transform: translateY(1px) }
+        .arc__row:last-child{ border-bottom:none }
+
+        /* Rank badge — arcade vibe */
+        .arc__rank{
+          font-weight:900; font-size:20px; letter-spacing:.08em;
+          color:#fff; text-align:center;
+          padding:10px 0;
+          border:1px solid var(--line-strong);
+          border-radius:10px;
+          background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+          box-shadow: 0 0 0 1px rgba(255,255,255,.03) inset;
+        }
+
+        /* Who/info block */
+        .arc__who{ min-width:0; display:grid; gap:4px }
+        .arc__nick{
+          font-weight:900; text-transform:uppercase; letter-spacing:.06em;
+          white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+        }
+        .arc__meta{
+          font-size:12px; color:#a6a6a6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+        }
+        .arc__title{
+          font-size:13px; color:#d5d5d5; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+        }
+
+        /* Right-side thumbnail */
+        .arc__thumb{
+          width:180px; height:100px; border-radius:10px; object-fit:cover; background:#000;
+          box-shadow: 0 0 0 1px rgba(255,255,255,.05) inset;
+        }
+
       `}}/>
     </>
   );
