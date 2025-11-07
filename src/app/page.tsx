@@ -28,7 +28,7 @@ export default async function Page() {
   const [trendingRes, freshRes, topWeekRes] = await Promise.all([
     // Trending: 24h + score desc
     supabase.from('clips_with_score')
-      .select('id,title,url,author_name,score,created_at')
+      .select('id,title,url,author_name,votes,created_at,game')
       .gte('created_at', last24h)
       .order('score', { ascending: false })
       .order('created_at', { ascending: false })
@@ -36,14 +36,14 @@ export default async function Page() {
 
     // Fresh: anch’esso ordinato per score desc (poi recency)
     supabase.from('clips_with_score')
-      .select('id,title,url,author_name,score,created_at')
+      .select('id,title,url,author_name,votes,created_at,game')
       .order('score', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(20),
 
     // Top settimana: 7d + score desc
     supabase.from('clips_with_score')
-      .select('id,title,url,author_name,score,created_at')
+      .select('id,title,url,author_name,votes,created_at,game')
       .gte('created_at', last7d)
       .order('score', { ascending: false })
       .order('created_at', { ascending: false })
