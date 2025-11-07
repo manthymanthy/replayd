@@ -134,7 +134,8 @@ export default function LeaderboardClient({ rows }: { rows: Row[] }) {
 
       <PlayerModal url={openUrl} onClose={() => setOpenUrl(null)} />
 
-      <style>{`
+           <style>{`
+        /* — LIST CONTAINER — */
         .lb__list{
           border:1px solid var(--line);
           border-radius:14px;
@@ -145,11 +146,12 @@ export default function LeaderboardClient({ rows }: { rows: Row[] }) {
           padding:24px; text-align:center; color:#a6a6a6;
         }
 
+        /* — ROWS — */
         .lb__rowWrap{ display:block } /* wrapper per gli eventi hover */
         .lb__row{
           width:100%;
           display:grid;
-          grid-template-columns: 90px 1fr 240px; /* thumb più lunga */
+          grid-template-columns: 90px 1fr 240px; /* thumb a destra */
           gap:14px;
           align-items:center;
           padding:16px 18px;
@@ -159,15 +161,17 @@ export default function LeaderboardClient({ rows }: { rows: Row[] }) {
           color:inherit;
           text-align:left;
           cursor:pointer;
-          transition: background .07s ease, border-color .12s ease;
+          transition: background .07s ease, border-color .12s ease, box-shadow .12s ease, transform .04s ease;
+          position:relative;
         }
         .lb__row:last-child{ border-bottom:none }
         .lb__row:hover{
-          background:#111;
+          background:#101010;
           border-color:var(--line-strong);
         }
         .lb__row:active{ transform:translateY(1px) }
 
+        /* — RANK NUMBER — */
         .lb__rank{
           font-size:20px; font-weight:900; letter-spacing:.08em;
           text-align:center; color:#fff;
@@ -183,9 +187,10 @@ export default function LeaderboardClient({ rows }: { rows: Row[] }) {
           white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
         }
 
+        /* — THUMB/IFRAME RIGHT — */
         .lb__thumbBox{
           position:relative;
-          width:100%; height:120px; /* più alta per avere vero “preview” */
+          width:100%; height:120px;
           border-radius:12px; overflow:hidden; background:#000;
           box-shadow: 0 0 0 1px rgba(255,255,255,.05) inset;
         }
@@ -197,6 +202,64 @@ export default function LeaderboardClient({ rows }: { rows: Row[] }) {
           position:absolute; inset:0; width:100%; height:100%; border:0;
         }
 
+        /* — ARCADE FLAIR PER LE PRIME POSIZIONI — */
+        /* #1: gold glow + crown */
+        .lb__rowWrap:nth-child(1) .lb__row{
+          box-shadow: 0 0 0 1px rgba(255,215,106,.18) inset,
+                      0 10px 35px rgba(255,215,106,.12);
+          background: linear-gradient(180deg, rgba(255,215,106,.06), transparent 28%);
+        }
+        .lb__rowWrap:nth-child(1) .lb__rank{
+          color:#ffd76a;
+          text-shadow: 0 0 14px rgba(255,215,106,.45), 0 0 2px rgba(255,215,106,.6);
+          position:relative;
+        }
+        .lb__rowWrap:nth-child(1) .lb__rank::after{
+          content:"👑";
+          font-size:14px;
+          position:absolute; top:-8px; right:12px;
+          filter: drop-shadow(0 2px 2px rgba(0,0,0,.35));
+        }
+
+        /* #2: silver/steel glow */
+        .lb__rowWrap:nth-child(2) .lb__row{
+          box-shadow: 0 0 0 1px rgba(200,215,235,.14) inset,
+                      0 8px 28px rgba(180,200,225,.10);
+          background: linear-gradient(180deg, rgba(200,215,235,.05), transparent 28%);
+        }
+        .lb__rowWrap:nth-child(2) .lb__rank{
+          color:#cfd8e6;
+          text-shadow: 0 0 10px rgba(200,215,235,.40), 0 0 2px rgba(200,215,235,.55);
+        }
+
+        /* #3: violet glow */
+        .lb__rowWrap:nth-child(3) .lb__row{
+          box-shadow: 0 0 0 1px rgba(205,155,255,.14) inset,
+                      0 8px 26px rgba(205,155,255,.10);
+          background: linear-gradient(180deg, rgba(205,155,255,.05), transparent 28%);
+        }
+        .lb__rowWrap:nth-child(3) .lb__rank{
+          color:#cd9bff;
+          text-shadow: 0 0 10px rgba(205,155,255,.40), 0 0 2px rgba(205,155,255,.55);
+        }
+
+        /* Prime 10: barra neon sottile a sinistra */
+        .lb__rowWrap:nth-child(-n+10) .lb__row::before{
+          content:"";
+          position:absolute; left:0; top:0; bottom:0; width:2px;
+          background: linear-gradient(180deg,
+            color-mix(in oklab, var(--accent) 65%, transparent) 0%,
+            transparent 100%);
+          opacity:.8;
+        }
+
+        /* Hover: piccola elevazione */
+        .lb__row:hover{
+          box-shadow: 0 0 0 1px rgba(255,255,255,.05) inset,
+                      0 6px 18px rgba(0,0,0,.28);
+        }
+
+        /* — RESPONSIVE — */
         @media(max-width:900px){
           .lb__row{ grid-template-columns: 70px 1fr 180px; }
           .lb__thumbBox{ height:100px; }
