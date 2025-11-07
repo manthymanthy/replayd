@@ -4,7 +4,8 @@ import { createClient } from '@supabase/supabase-js';
 import FeedListClient from "../components/FeedListClient";
 import GameFilter from "../components/GameFilter";
 
-export const revalidate = 0;
+export const revalidate = 0;                 // niente cache
+export const dynamic = 'force-dynamic';
 
 type Row = {
   id: string;
@@ -13,77 +14,70 @@ type Row = {
   author_name: string | null;
   votes: number | null;
   created_at: string;
-  game: string | null;
+  game?: string | null;
 };
 
 export default async function Page({
   searchParams,
 }: {
-  searchParams?: { game?: string };
+  searchParams: { game?: string };
 }) {
-  const activeGame = (searchParams?.game || '').trim().toLowerCase() || null;
-
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  // Applica il filtro per gioco se presente (evita tipi rigidi per non perdere .eq)
-  const withGame = (q: any) => (activeGame ? q.eq('game', activeGame) : q);
+  const activeGame =
+    typeof searchParams.game === 'string' && searchParams.game.length
+      ? decodeURIComponent(searchParams.game)
+      : null;
+
+  // giochi disponibili (distinct fatto lato app)
+  const { data: gamesRaw } = await supabase
+    .from('clips')
+    .select('game')
+    .not('game', 'is', null);
+
+  const games = Array.from(
+    new Set((gamesRaw || []).map((g: any) => String(g.game).trim()).filter(Boolean))
+  ).sort((a, b) => a.localeCompare(b));
 
   const now = new Date();
   const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
-  const last7d  = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const last7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-  const [trendingRes, freshRes, topWeekRes, gamesRes] = await Promise.all([
+  // helper per applicare il filtro gioco
+  const withGame = (q: any) => (activeGame ? q.eq('game', activeGame) : q);
+
+  const [trendingRes, freshRes, topWeekRes] = await Promise.all([
     withGame(
-      supabase
-        .from('clips')
+      supabase.from('clips')
         .select('id,title,url,author_name,votes,created_at,game')
         .gte('created_at', last24h)
         .order('votes', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(20)
     ),
-
     withGame(
-      supabase
-        .from('clips')
+      supabase.from('clips')
         .select('id,title,url,author_name,votes,created_at,game')
         .order('votes', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(20)
     ),
-
     withGame(
-      supabase
-        .from('clips')
+      supabase.from('clips')
         .select('id,title,url,author_name,votes,created_at,game')
         .gte('created_at', last7d)
         .order('votes', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(20)
     ),
-
-    // elenco giochi (unici) per i chip
-    supabase
-      .from('clips')
-      .select('game')
-      .neq('game', null)
-      .limit(1000),
   ]);
 
   const trending = (trendingRes.data || []) as Row[];
-  const fresh    = (freshRes.data || []) as Row[];
-  const topWeek  = (topWeekRes.data || []) as Row[];
-
-  const games = Array.from(
-    new Set(
-      (gamesRes.data || [])
-        .map((r: any) => (r.game || '').toString().toLowerCase())
-        .filter(Boolean)
-    )
-  ).sort();
+  const fresh = (freshRes.data || []) as Row[];
+  const topWeek = (topWeekRes.data || []) as Row[];
 
   return (
     <main className="home">
@@ -93,22 +87,22 @@ export default async function Page({
         <p className="tag">The sharpest FPS highlights — curated by the community.</p>
       </header>
 
-      {/* FILTERS */}
+      {/* FILTER CHIPS */}
       <GameFilter games={games} active={activeGame} />
 
       {/* SECTIONS */}
       <section className="block">
-        <h2 className="h2">Trending (last 24h){activeGame ? ` — ${activeGame}` : ''}</h2>
+        <h2 className="h2">Trending (last 24h)</h2>
         <FeedListClient rows={trending} empty="Nothing in the last 24 hours yet." />
       </section>
 
       <section className="block">
-        <h2 className="h2">Fresh drops{activeGame ? ` — ${activeGame}` : ''}</h2>
+        <h2 className="h2">Fresh drops</h2>
         <FeedListClient rows={fresh} empty="New clips will appear here." />
       </section>
 
       <section className="block">
-        <h2 className="h2">Top this week{activeGame ? ` — ${activeGame}` : ''}</h2>
+        <h2 className="h2">Top this week</h2>
         <FeedListClient rows={topWeek} empty="Once clips get votes, they’ll show up here." />
       </section>
 
@@ -121,7 +115,6 @@ export default async function Page({
           text-transform:uppercase;
         }
         .tag{ opacity:.75 }
-
         .block{ display:grid; gap:10px }
         .h2{
           font-size:16px; font-weight:800; letter-spacing:.06em;
