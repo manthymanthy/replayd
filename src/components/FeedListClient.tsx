@@ -1,7 +1,6 @@
-// src/components/FeedListClient.tsx
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 import PlayerModal from "./PlayerModal";
@@ -39,12 +38,7 @@ function ymd(s: string){
   return `${d.getFullYear()}-${mm}-${dd}`;
 }
 function isNew(created_at: string){
-  // NEW ENTRY visibile per 2 ore dall’upload
-  return (Date.now() - new Date(created_at).getTime()) < 2 * 60 * 60 * 1000;
-}
-function isHot(votes: number | null){
-  // soglia "HOT" regolabile
-  return (votes ?? 0) >= 25;
+  return (Date.now() - new Date(created_at).getTime()) < 2 * 60 * 60 * 1000; // 2h
 }
 function domainFrom(url: string){
   try { return new URL(url).hostname.replace(/^www\./,""); }
@@ -58,18 +52,39 @@ function thumbFrom(url: string){
 
 export default function FeedListClient({ rows, empty }: { rows: Row[]; empty: string }) {
   const [data, setData] = useState<Row[]>(rows);
-  const [openUrl, setOpenUrl] = useState<string | null>(null);
+  const [openIdx, setOpenIdx] = useState<number | null>(null);
+
+  // Blocca lo scroll del body quando l’overlay è aperto
+  useEffect(() => {
+    if (openIdx !== null) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => { document.body.style.overflow = prev; };
+    }
+  }, [openIdx]);
+
+  // Navigazione tastiera: ↑/← = prev, ↓/→ = next, ESC chiude (ESC già gestito anche nel modal)
+  useEffect(() => {
+    if (openIdx === null) return;
+    function onKey(e: KeyboardEvent){
+      if (openIdx === null) return;
+      if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
+        e.preventDefault();
+        setOpenIdx(i => (i! > 0 ? (i! - 1) : i));
+      } else if (e.key === "ArrowDown" || e.key === "ArrowRight") {
+        e.preventDefault();
+        setOpenIdx(i => (i! < data.length - 1 ? (i! + 1) : i));
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [openIdx, data.length]);
 
   async function upvote(clipId: string){
     const device = getDeviceId();
-
-    // update ottimistico
     setData(prev => prev.map(r => r.id === clipId ? ({...r, votes: (r.votes ?? 0) + 1}) : r));
-
     const { error } = await supabase.from("votes").insert({ clip_id: clipId, fingerprint: device });
-
     if (error) {
-      // rollback
       setData(prev => prev.map(r => r.id === clipId ? ({...r, votes: Math.max(0, (r.votes ?? 1) - 1)}) : r));
       // @ts-ignore
       if (error.code === "23505") alert("You already upvoted this clip on this device.");
@@ -77,11 +92,13 @@ export default function FeedListClient({ rows, empty }: { rows: Row[]; empty: st
     }
   }
 
+  const currentUrl = openIdx !== null ? data[openIdx]?.url ?? null : null;
+
   return (
     <>
       <div className="table">
         <div className="tbody">
-          {data.map((r) => {
+          {data.map((r, idx) => {
             const thumb = thumbFrom(r.url);
             return (
               <div key={r.id} className="row">
@@ -91,14 +108,14 @@ export default function FeedListClient({ rows, empty }: { rows: Row[]; empty: st
                   alt=""
                   loading="lazy"
                   decoding="async"
-                  onClick={() => setOpenUrl(r.url)}
+                  onClick={() => setOpenIdx(idx)}
                   style={{cursor:"pointer"}}
                 />
 
-                <div className="info" onClick={() => setOpenUrl(r.url)} style={{cursor:"pointer"}}>
+                <div className="info" onClick={() => setOpenIdx(idx)} style={{cursor:"pointer"}}>
                   <div className="badgerow">
                     {isNew(r.created_at) && <span className="badge badge--new">NEW ENTRY</span>}
-                    {isHot(r.votes) && <span className="badge badge--hot">HOT</span>}
+                    {(r.votes ?? 0) >= 25 && <span className="badge badge--hot">HOT</span>}
                   </div>
                   <div className="title">{r.title || "Untitled"}</div>
                   <div className="meta">
@@ -117,89 +134,48 @@ export default function FeedListClient({ rows, empty }: { rows: Row[]; empty: st
         </div>
       </div>
 
-      <PlayerModal url={openUrl} onClose={() => setOpenUrl(null)} />
+      <PlayerModal url={currentUrl} onClose={() => setOpenIdx(null)} />
 
       <style>{`
-        .table{
-          border:1px solid var(--line);
-          border-radius:12px;
-          overflow:hidden;
-          background:var(--panel);
-        }
+        .table{ border:1px solid var(--line); border-radius:12px; overflow:hidden; background:var(--panel) }
         .tbody{ display:block }
 
         .row{
-          display:grid;
-          grid-template-columns: 120px 1fr 86px;
-          gap:12px;
-          align-items:center;
-          padding:12px 12px;
-          border-bottom:1px solid var(--line);
+          display:grid; grid-template-columns: 120px 1fr 86px; gap:12px;
+          align-items:center; padding:12px 12px; border-bottom:1px solid var(--line);
           transition: background .08s ease, border-color .12s ease;
         }
-        .row:hover{
-          background:#101010;
-          border-color:var(--line-strong);
-        }
+        .row:hover{ background:#101010; border-color:var(--line-strong) }
         .row:last-child{ border-bottom:none }
 
-        .thumb{
-          width:120px;
-          height:68px;
-          border-radius:8px;
-          object-fit:cover;
-          background:#000;
-        }
+        .thumb{ width:120px; height:68px; border-radius:8px; object-fit:cover; background:#000; }
 
-        .info{
-          display:grid;
-          gap:3px;
-          min-width:0;
-        }
-        .badgerow{ min-height:18px }
+        .info{ display:grid; gap:3px; min-width:0 }
+        .badgerow{ min-height:18px; display:flex; gap:6px; flex-wrap:wrap }
         .badge{
-          display:inline-block;
-          font-size:11px; font-weight:900; letter-spacing:.08em;
+          display:inline-block; font-size:11px; font-weight:900; letter-spacing:.08em;
           padding:3px 8px; border-radius:999px;
           border:1px solid var(--line-strong);
           background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
-          color:#fff;
-          margin-bottom:4px;
+          color:#fff; margin-bottom:4px;
         }
-        /* NEW ENTRY — neon green */
         .badge--new{
-          color:#00FF8A;
-          border-color:rgba(0,255,138,0.4);
-          background:rgba(0,255,138,0.08);
-          text-shadow:0 0 4px rgba(0,255,160,0.65);
+          color:#00ff95;
+          text-shadow: 0 0 10px rgba(0,255,149,.45), 0 0 18px rgba(0,255,149,.25);
+          box-shadow: 0 0 0 1px rgba(0,255,149,.15) inset, 0 0 18px rgba(0,255,149,.12);
+          border-color: rgba(0,255,149,.35);
         }
-        /* HOT — neon fire orange */
         .badge--hot{
-          color:#ff9650;
-          border-color:rgba(255,120,60,0.6);
-          background:rgba(255,120,60,0.12);
-          text-shadow:0 0 6px rgba(255,100,40,0.7);
+          color:#ff7a4d;
+          text-shadow: 0 0 10px rgba(255,122,77,.45), 0 0 18px rgba(255,122,77,.25);
+          box-shadow: 0 0 0 1px rgba(255,122,77,.15) inset, 0 0 18px rgba(255,122,77,.12);
+          border-color: rgba(255,122,77,.35);
         }
 
-        .title{
-          font-weight:700;
-          color:#fff;
-          white-space:nowrap;
-          overflow:hidden;
-          text-overflow:ellipsis;
-        }
-        .meta{
-          font-size:12px;
-          color:#a6a6a6;
-          white-space:nowrap;
-          overflow:hidden;
-          text-overflow:ellipsis;
-        }
+        .title{ font-weight:700; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+        .meta{ font-size:12px; color:#a6a6a6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
 
-        .votes{
-          display:grid;
-          justify-items:end;
-        }
+        .votes{ display:grid; justify-items:end }
       `}</style>
     </>
   );
