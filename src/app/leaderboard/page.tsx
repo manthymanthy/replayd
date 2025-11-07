@@ -1,10 +1,10 @@
 // src/app/leaderboard/page.tsx
 import { createClient } from '@supabase/supabase-js';
-import LeaderboardClient from '@/components/LeaderboardClient';
+import LeaderboardClient from '../../components/LeaderboardClient'; // <- relativo, non '@/'
 
 export const revalidate = 60;
 
-export type LbRow = {
+type LbRow = {
   id: string;
   title: string | null;
   url: string;
