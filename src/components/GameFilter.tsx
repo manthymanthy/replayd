@@ -1,48 +1,56 @@
 // src/components/GameFilter.tsx
-"use client";
-import { useTransition } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 export default function GameFilter({
   games,
   active,
-}: { games: string[]; active: string | null }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const search = useSearchParams();
-  const [isPending, start] = useTransition();
+}: {
+  games: string[];
+  active: string | null;
+}) {
+  const items = ["All", ...games];
 
-  function setGame(next: string | null) {
-    const params = new URLSearchParams(search?.toString() || "");
-    if (!next) params.delete("game");
-    else params.set("game", next);
-
-    const url = `${pathname}?${params.toString()}`;
-    start(() => {
-      router.replace(url, { scroll: false });
-      router.refresh();               // ⬅️ forza il refetch del Server Component
-    });
-  }
-
-  const chips = ["All", ...games];
+  const hrefFor = (label: string) => {
+    if (label === "All") return "/";
+    const v = encodeURIComponent(label);
+    return `/?game=${v}`;
+  };
 
   return (
-    <div className="gf">
-      {chips.map((g) => {
-        const val = g === "All" ? null : g;
-        const isActive = (val ?? null) === (active ?? null);
+    <nav className="gf">
+      {items.map((g) => {
+        const isActive =
+          (g === "All" && !active) || (active && g.toLowerCase() === active.toLowerCase());
         return (
-          <button
+          <Link
             key={g}
-            onClick={() => setGame(val)}
-            className={`gf__chip ${isActive ? "gf__chip--on" : ""}`}
-            aria-pressed={isActive}
-            disabled={isPending && isActive}
+            href={hrefFor(g)}
+            prefetch
+            className={`gf__chip ${isActive ? "gf__chip--active" : ""}`}
+            aria-current={isActive ? "page" : undefined}
           >
             {g}
-          </button>
+          </Link>
         );
       })}
-    </div>
+
+      <style>{`
+        .gf{ display:flex; flex-wrap:wrap; gap:8px; margin:4px 0 8px }
+        .gf__chip{
+          display:inline-block; padding:8px 12px; border-radius:999px;
+          border:1px solid var(--line);
+          background:var(--panel); color:#fff; font-weight:700; font-size:12px;
+          letter-spacing:.02em;
+          text-decoration:none;
+          transition: border-color .12s ease, background .12s ease, transform .06s ease;
+        }
+        .gf__chip:hover{ border-color:var(--line-strong); background:#151515; transform:translateY(-1px) }
+        .gf__chip--active{
+          border-color:#3a3a3a;
+          background: color-mix(in oklab, var(--panel) 85%, #fff 15%);
+          box-shadow: 0 0 0 1px rgba(255,255,255,.05) inset;
+        }
+      `}</style>
+    </nav>
   );
 }
