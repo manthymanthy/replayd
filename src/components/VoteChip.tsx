@@ -18,8 +18,7 @@ export default function VoteChip({
     const el = ref.current;
     if (!el) return;
     el.classList.remove("vc__pulse");
-    // force reflow to restart animation
-    void el.offsetWidth;
+    void el.offsetWidth; // restart anim
     el.classList.add("vc__pulse");
   }
 
@@ -39,27 +38,40 @@ export default function VoteChip({
       <style>{`
         .vc{
           display:inline-grid; grid-auto-flow:column; align-items:center; gap:8px;
-          padding:6px 10px; border-radius:999px;
+          padding:8px 12px; border-radius:999px;
           border:1px solid var(--line-strong);
-          background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+          background:
+            radial-gradient(120% 120% at 50% 0%, color-mix(in oklab, var(--accent) 6%, transparent) 0%, transparent 60%),
+            linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
           color:#fff; font-weight:900; letter-spacing:.02em;
           cursor:pointer; user-select:none;
-          transition:transform .06s ease, border-color .12s ease, box-shadow .12s ease;
-          box-shadow:0 0 0 1px rgba(255,255,255,.03) inset;
+          transition:transform .06s ease, border-color .12s ease, box-shadow .16s ease, background .16s ease;
+          box-shadow:
+            0 0 0 1px rgba(255,255,255,.03) inset,
+            0 0 18px 0 color-mix(in oklab, var(--accent) 0%, transparent);
+          will-change: transform, box-shadow;
         }
-        .vc:hover{ border-color:#3a3a3a; transform:translateY(-1px) }
-        .vc:active{ transform:translateY(0) scale(.997) }
-        .vc__arrow{ font-size:12px; opacity:.9 }
-        .vc__count{ font-variant-numeric:tabular-nums; font-size:13px }
+        .vc:hover{
+          transform: translateY(-1px);
+          border-color: color-mix(in oklab, var(--accent) 50%, #333 50%);
+          box-shadow:
+            0 0 0 1px rgba(255,255,255,.05) inset,
+            0 0 26px 0 color-mix(in oklab, var(--accent) 28%, transparent);
+          background:
+            radial-gradient(120% 120% at 50% 0%, color-mix(in oklab, var(--accent) 10%, transparent) 0%, transparent 60%),
+            linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
+        }
+        .vc:active{ transform: translateY(0) scale(.995) }
 
-        /* micro-animazione quando voti */
-        .vc.vc__pulse{
-          animation: vcPulse .28s ease;
-        }
+        .vc__arrow{ font-size:12px; opacity:.95; text-shadow: 0 0 14px color-mix(in oklab, var(--accent) 20%, transparent) }
+        .vc__count{ font-variant-numeric: tabular-nums; font-size:13px }
+
+        /* pulse al voto */
+        .vc.vc__pulse{ animation: vcPulse .28s ease }
         @keyframes vcPulse{
-          0%{ transform:translateY(-1px) scale(1.00); box-shadow:0 0 0 0 rgba(80,200,255,.0) }
-          40%{ transform:translateY(-1px) scale(1.03); box-shadow:0 0 0 6px rgba(80,200,255,.10) }
-          100%{ transform:translateY(-1px) scale(1.00); box-shadow:0 0 0 0 rgba(80,200,255,.0) }
+          0%  { box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent) 0%, transparent) }
+          40% { box-shadow: 0 0 22px 6px color-mix(in oklab, var(--accent) 24%, transparent) }
+          100%{ box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent) 0%, transparent) }
         }
       `}</style>
     </>
