@@ -42,6 +42,10 @@ function isNew(created_at: string){
   // NEW ENTRY visibile per 2 ore dall’upload
   return (Date.now() - new Date(created_at).getTime()) < 2 * 60 * 60 * 1000;
 }
+function isHot(votes: number | null){
+  // soglia "HOT" regolabile
+  return (votes ?? 0) >= 25;
+}
 function domainFrom(url: string){
   try { return new URL(url).hostname.replace(/^www\./,""); }
   catch { return ""; }
@@ -94,6 +98,7 @@ export default function FeedListClient({ rows, empty }: { rows: Row[]; empty: st
                 <div className="info" onClick={() => setOpenUrl(r.url)} style={{cursor:"pointer"}}>
                   <div className="badgerow">
                     {isNew(r.created_at) && <span className="badge badge--new">NEW ENTRY</span>}
+                    {isHot(r.votes) && <span className="badge badge--hot">HOT</span>}
                   </div>
                   <div className="title">{r.title || "Untitled"}</div>
                   <div className="meta">
@@ -160,6 +165,20 @@ export default function FeedListClient({ rows, empty }: { rows: Row[]; empty: st
           background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
           color:#fff;
           margin-bottom:4px;
+        }
+        /* NEW ENTRY — neon green */
+        .badge--new{
+          color:#00FF8A;
+          border-color:rgba(0,255,138,0.4);
+          background:rgba(0,255,138,0.08);
+          text-shadow:0 0 4px rgba(0,255,160,0.65);
+        }
+        /* HOT — neon fire orange */
+        .badge--hot{
+          color:#ff9650;
+          border-color:rgba(255,120,60,0.6);
+          background:rgba(255,120,60,0.12);
+          text-shadow:0 0 6px rgba(255,100,40,0.7);
         }
 
         .title{
