@@ -1,11 +1,13 @@
+// src/components/FeedListClient.tsx
 "use client";
 
 import { useState } from "react";
-import PlayerModal from "./PlayerModal";
-import { parseClip } from "../lib/parseClip";
 import { createClient } from "@supabase/supabase-js";
-import { getDeviceId } from "../lib/device";
+
+import PlayerModal from "./PlayerModal";            // <-- IMPORT CORRETTO (case sensitive)
 import VoteChip from "./VoteChip";
+import { parseClip } from "../lib/parseClip";
+import { getDeviceId } from "../lib/device";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -47,20 +49,17 @@ export function FeedListClient({ rows, empty }: { rows: Row[]; empty: string }) 
   async function upvote(clipId: string){
     const device = getDeviceId();
 
-    // Update ottimistico
+    // update ottimistico
     setData(prev => prev.map(r => r.id === clipId ? ({...r, votes: (r.votes ?? 0) + 1}) : r));
 
     const { error } = await supabase.from("votes").insert({ clip_id: clipId, fingerprint: device });
 
     if (error) {
-      // se è unique violation (già votato), ripristina e avvisa
-      if ((error as any).code === "23505") {
-        setData(prev => prev.map(r => r.id === clipId ? ({...r, votes: Math.max(0, (r.votes ?? 1) - 1)}) : r));
-        alert("You already upvoted this clip on this device.");
-      } else {
-        setData(prev => prev.map(r => r.id === clipId ? ({...r, votes: Math.max(0, (r.votes ?? 1) - 1)}) : r));
-        alert("Vote failed. Please try again.");
-      }
+      // rollback
+      setData(prev => prev.map(r => r.id === clipId ? ({...r, votes: Math.max(0, (r.votes ?? 1) - 1)}) : r));
+      // @ts-ignore (Postgres unique violation)
+      if (error.code === "23505") alert("You already upvoted this clip on this device.");
+      else alert("Vote failed. Please try again.");
     }
   }
 
@@ -90,74 +89,76 @@ export function FeedListClient({ rows, empty }: { rows: Row[]; empty: string }) 
                 </div>
 
                 <div className="votes">
-  <VoteChip count={r.votes ?? 0} onClick={() => upvote(r.id)} />
-</div>
+                  <VoteChip count={r.votes ?? 0} onClick={() => upvote(r.id)} />
+                </div>
               </div>
             );
           })}
+
           {data.length === 0 && <div className="empty">{empty}</div>}
         </div>
       </div>
 
+      {/* Player modal (safe: url può essere null) */}
       <PlayerModal url={openUrl} onClose={() => setOpenUrl(null)} />
 
       <style>{`
-  .table{
-    border:1px solid var(--line);
-    border-radius:12px;
-    overflow:hidden;
-    background:var(--panel);
-  }
-  .tbody{ display:block }
+        .table{
+          border:1px solid var(--line);
+          border-radius:12px;
+          overflow:hidden;
+          background:var(--panel);
+        }
+        .tbody{ display:block }
 
-  .row{
-    display:grid;
-    grid-template-columns: 120px 1fr 86px;
-    gap:12px;
-    align-items:center;
-    padding:12px 12px;
-    border-bottom:1px solid var(--line);
-    transition: background .08s ease, border-color .12s ease;
-  }
-  .row:hover{
-    background:#101010;
-    border-color:var(--line-strong);
-  }
-  .row:last-child{ border-bottom:none }
+        .row{
+          display:grid;
+          grid-template-columns: 120px 1fr 86px;
+          gap:12px;
+          align-items:center;
+          padding:12px 12px;
+          border-bottom:1px solid var(--line);
+          transition: background .08s ease, border-color .12s ease;
+        }
+        .row:hover{
+          background:#101010;
+          border-color:var(--line-strong);
+        }
+        .row:last-child{ border-bottom:none }
 
-  /* THUMB */
-  .thumb{
-    width:120px;
-    height:68px;
-    border-radius:8px;
-    object-fit:cover;
-    background:#000;
-  }
+        .thumb{
+          width:120px;
+          height:68px;
+          border-radius:8px;
+          object-fit:cover;
+          background:#000;
+        }
 
-  /* TEXT INFO */
-  .info{
-    display:grid;
-    gap:3px;
-    min-width:0;
-  }
-  .title{
-    font-weight:700;
-    color:#fff;
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
-  }
-  .meta{
-    font-size:12px;
-    color:#a6a6a6;
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
-  }
+        .info{
+          display:grid;
+          gap:3px;
+          min-width:0;
+        }
+        .title{
+          font-weight:700;
+          color:#fff;
+          white-space:nowrap;
+          overflow:hidden;
+          text-overflow:ellipsis;
+        }
+        .meta{
+          font-size:12px;
+          color:#a6a6a6;
+          white-space:nowrap;
+          overflow:hidden;
+          text-overflow:ellipsis;
+        }
 
-  /* VOTE CHIP AREA */
-  .votes{
-    display:grid;
-    justify-items:end;
-  }
-`}</style>
+        .votes{
+          display:grid;
+          justify-items:end;
+        }
+      `}</style>
+    </>
+  );
+}
