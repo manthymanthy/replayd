@@ -3,14 +3,15 @@
 import { createClient } from '@supabase/supabase-js';
 import FeedListClient from "../components/FeedListClient";
 
-export const revalidate = 30;
+// Per debug immediato dei conteggi reali (puoi rimettere 30 dopo)
+export const revalidate = 0;
 
 type Row = {
   id: string;
   title: string | null;
   url: string;
   author_name: string | null;
-  votes: number | null;
+  votes: number;           // mappiamo score -> votes per compatibilità UI
   created_at: string;
 };
 
@@ -25,33 +26,44 @@ export default async function Page() {
   const last7d  = new Date(now.getTime() - 7*24*60*60*1000).toISOString();
 
   const [trendingRes, freshRes, topWeekRes] = await Promise.all([
-  // Trending: 24h + votes desc
-  supabase.from('clips')
-    .select('id,title,url,author_name,votes,created_at')
-    .gte('created_at', last24h)
-    .order('votes', { ascending: false })
-    .order('created_at', { ascending: false })
-    .limit(20),
+    // Trending: 24h + score desc
+    supabase.from('clips_with_score')
+      .select('id,title,url,author_name,score,created_at')
+      .gte('created_at', last24h)
+      .order('score', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(20),
 
-  // Fresh: ORA per votes desc (prima era solo created_at)
-  supabase.from('clips')
-    .select('id,title,url,author_name,votes,created_at')
-    .order('votes', { ascending: false })
-    .order('created_at', { ascending: false })
-    .limit(20),
+    // Fresh: anch’esso ordinato per score desc (poi recency)
+    supabase.from('clips_with_score')
+      .select('id,title,url,author_name,score,created_at')
+      .order('score', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(20),
 
-  // Top settimana: 7d + votes desc (già ok)
-  supabase.from('clips')
-    .select('id,title,url,author_name,votes,created_at')
-    .gte('created_at', last7d)
-    .order('votes', { ascending: false })
-    .order('created_at', { ascending: false })
-    .limit(20),
-]);
+    // Top settimana: 7d + score desc
+    supabase.from('clips_with_score')
+      .select('id,title,url,author_name,score,created_at')
+      .gte('created_at', last7d)
+      .order('score', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(20),
+  ]);
 
-  const trending = (trendingRes.data || []) as Row[];
-  const fresh    = (freshRes.data || []) as Row[];
-  const topWeek  = (topWeekRes.data || []) as Row[];
+  // Mappiamo score -> votes per non toccare FeedListClient
+  const mapRows = (rows: any[] | null): Row[] =>
+    (rows || []).map(r => ({
+      id: r.id,
+      title: r.title,
+      url: r.url,
+      author_name: r.author_name,
+      votes: Number(r.score ?? 0),
+      created_at: r.created_at,
+    }));
+
+  const trending = mapRows(trendingRes.data);
+  const fresh    = mapRows(freshRes.data);
+  const topWeek  = mapRows(topWeekRes.data);
 
   return (
     <main className="home">
