@@ -39,8 +39,8 @@ function ymd(s: string){
   return `${d.getFullYear()}-${mm}-${dd}`;
 }
 function isNew(created_at: string){
-  // badge visibile per 72 ore dall'upload
-  return (Date.now() - new Date(created_at).getTime()) < 72*60*60*1000;
+  // NEW ENTRY visibile per 2 ore dall’upload
+  return (Date.now() - new Date(created_at).getTime()) < 2 * 60 * 60 * 1000;
 }
 function domainFrom(url: string){
   try { return new URL(url).hostname.replace(/^www\./,""); }
