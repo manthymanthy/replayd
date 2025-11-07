@@ -25,25 +25,29 @@ export default async function Page() {
   const last7d  = new Date(now.getTime() - 7*24*60*60*1000).toISOString();
 
   const [trendingRes, freshRes, topWeekRes] = await Promise.all([
-    supabase.from('clips')
-      .select('id,title,url,author_name,votes,created_at')
-      .gte('created_at', last24h)
-      .order('votes', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(20),
+  // Trending: 24h + votes desc
+  supabase.from('clips')
+    .select('id,title,url,author_name,votes,created_at')
+    .gte('created_at', last24h)
+    .order('votes', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(20),
 
-    supabase.from('clips')
-      .select('id,title,url,author_name,votes,created_at')
-      .order('created_at', { ascending: false })
-      .limit(20),
+  // Fresh: ORA per votes desc (prima era solo created_at)
+  supabase.from('clips')
+    .select('id,title,url,author_name,votes,created_at')
+    .order('votes', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(20),
 
-    supabase.from('clips')
-      .select('id,title,url,author_name,votes,created_at')
-      .gte('created_at', last7d)
-      .order('votes', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(20),
-  ]);
+  // Top settimana: 7d + votes desc (già ok)
+  supabase.from('clips')
+    .select('id,title,url,author_name,votes,created_at')
+    .gte('created_at', last7d)
+    .order('votes', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(20),
+]);
 
   const trending = (trendingRes.data || []) as Row[];
   const fresh    = (freshRes.data || []) as Row[];
