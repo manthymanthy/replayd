@@ -28,36 +28,44 @@ export default async function Page({
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  // costruisci base query con filtro opzionale per gioco
-  const q = (base: ReturnType<typeof supabase.from<'clips', Row>>) =>
-    (activeGame ? base.eq('game', activeGame) : base);
+  // Applica il filtro per gioco se presente (evita tipi rigidi per non perdere .eq)
+  const withGame = (q: any) => (activeGame ? q.eq('game', activeGame) : q);
 
   const now = new Date();
-  const last24h = new Date(now.getTime() - 24*60*60*1000).toISOString();
-  const last7d  = new Date(now.getTime() - 7*24*60*60*1000).toISOString();
+  const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+  const last7d  = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
   const [trendingRes, freshRes, topWeekRes, gamesRes] = await Promise.all([
-    q(supabase.from('clips'))
-      .select('id,title,url,author_name,votes,created_at,game')
-      .gte('created_at', last24h)
-      .order('votes', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(20),
+    withGame(
+      supabase
+        .from('clips')
+        .select('id,title,url,author_name,votes,created_at,game')
+        .gte('created_at', last24h)
+        .order('votes', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(20)
+    ),
 
-    q(supabase.from('clips'))
-      .select('id,title,url,author_name,votes,created_at,game')
-      .order('votes', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(20),
+    withGame(
+      supabase
+        .from('clips')
+        .select('id,title,url,author_name,votes,created_at,game')
+        .order('votes', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(20)
+    ),
 
-    q(supabase.from('clips'))
-      .select('id,title,url,author_name,votes,created_at,game')
-      .gte('created_at', last7d)
-      .order('votes', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(20),
+    withGame(
+      supabase
+        .from('clips')
+        .select('id,title,url,author_name,votes,created_at,game')
+        .gte('created_at', last7d)
+        .order('votes', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(20)
+    ),
 
-    // elenco giochi disponibili (unici)
+    // elenco giochi (unici) per i chip
     supabase
       .from('clips')
       .select('game')
@@ -69,11 +77,12 @@ export default async function Page({
   const fresh    = (freshRes.data || []) as Row[];
   const topWeek  = (topWeekRes.data || []) as Row[];
 
-  // set di giochi (normalizzati in lowercase)
   const games = Array.from(
-    new Set((gamesRes.data || [])
-      .map((r: any) => (r.game || '').toString().toLowerCase())
-      .filter(Boolean))
+    new Set(
+      (gamesRes.data || [])
+        .map((r: any) => (r.game || '').toString().toLowerCase())
+        .filter(Boolean)
+    )
   ).sort();
 
   return (
@@ -89,23 +98,17 @@ export default async function Page({
 
       {/* SECTIONS */}
       <section className="block">
-        <h2 className="h2">
-          Trending (last 24h){activeGame ? ` — ${activeGame}` : ''}
-        </h2>
+        <h2 className="h2">Trending (last 24h){activeGame ? ` — ${activeGame}` : ''}</h2>
         <FeedListClient rows={trending} empty="Nothing in the last 24 hours yet." />
       </section>
 
       <section className="block">
-        <h2 className="h2">
-          Fresh drops{activeGame ? ` — ${activeGame}` : ''}
-        </h2>
+        <h2 className="h2">Fresh drops{activeGame ? ` — ${activeGame}` : ''}</h2>
         <FeedListClient rows={fresh} empty="New clips will appear here." />
       </section>
 
       <section className="block">
-        <h2 className="h2">
-          Top this week{activeGame ? ` — ${activeGame}` : ''}
-        </h2>
+        <h2 className="h2">Top this week{activeGame ? ` — ${activeGame}` : ''}</h2>
         <FeedListClient rows={topWeek} empty="Once clips get votes, they’ll show up here." />
       </section>
 
