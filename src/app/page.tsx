@@ -1,75 +1,148 @@
-import Link from "next/link";
+// src/app/page.tsx
+import { createClient } from '@supabase/supabase-js';
 
-function Section(props: { title: string; children?: React.ReactNode }) {
+// ISR soft: rigenera ogni 30s
+export const revalidate = 30;
+
+type Clip = {
+  id: string;
+  title: string | null;
+  url: string;
+  author_name: string | null;
+  votes: number | null;
+  created_at: string;
+};
+
+// Client Supabase anche lato server (usa le env pubbliche)
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+// Estrae l’ID di YouTube, se presente
+function getYouTubeId(u: string) {
+  // supporta youtu.be/ID e youtube.com/watch?v=ID (& variations)
+  const m =
+    u.match(/(?:youtu\.be\/|v=)([a-zA-Z0-9_-]{6,})/) ||
+    u.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]{6,})/);
+  return m?.[1];
+}
+
+// Thumbnail: YouTube → immagine ufficiale, altrimenti placeholder
+function thumbnailFor(url: string) {
+  const id = getYouTubeId(url);
+  if (id) return `https://img.youtube.com/vi/${id}/hqdefault.jpg`;
+  // mini placeholder neutro in data URI (grigio scuro)
+  return `data:image/svg+xml;utf8,` + encodeURIComponent(`
+    <svg xmlns='http://www.w3.org/2000/svg' width='480' height='270'>
+      <rect width='100%' height='100%' fill='#1a1a1a'/>
+      <text x='50%' y='50%' dy='.35em' text-anchor='middle'
+            fill='#7a7a7a' font-family='sans-serif' font-size='16'>No preview</text>
+    </svg>
+  `);
+}
+
+export default async function Page() {
+  const { data, error } = await supabase
+    .from('clips')
+    .select('id, title, url, author_name, votes, created_at')
+    .eq('status', 'approved')
+    .order('created_at', { ascending: false })
+    .limit(60);
+
+  const clips = (data || []) as Clip[];
+
   return (
-    <section style={{ display: "grid", gap: 8 }}>
-      <h2 style={{ fontSize: 18, fontWeight: 700 }}>{props.title}</h2>
+    <main style={{ display: 'grid', gap: 24, maxWidth: 1200, margin: '40px auto', padding: '0 16px' }}>
+      {/* Hero */}
+      <div style={{ display: 'grid', gap: 12 }}>
+        <h1 style={{ fontSize: 28, fontWeight: 800 }}>Feed</h1>
+        <p style={{ opacity: 0.8 }}>
+          Le migliori giocate inviate dalla community. Clicca per aprire la clip originale.
+        </p>
+      </div>
+
+      {/* Griglia responsive */}
       <div
         style={{
-          border: "1px solid rgba(255,255,255,.08)",
-          borderRadius: 8,
-          padding: 16,
-          minHeight: 120,
-          display: "grid",
-          placeItems: "center",
-          opacity: 0.8,
+          display: 'grid',
+          gap: 16,
+          gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))'
         }}
       >
-        {props.children}
+        {error && (
+          <div style={{ opacity: 0.8, color: '#ff8080' }}>
+            Errore nel caricamento: {error.message}
+          </div>
+        )}
+
+        {clips.map((c) => {
+          const thumb = thumbnailFor(c.url);
+          return (
+            <a
+              key={c.id}
+              href={c.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                position: 'relative',
+                display: 'block',
+                borderRadius: 12,
+                overflow: 'hidden',
+                border: '1px solid rgba(255,255,255,.08)',
+                background: 'rgba(255,255,255,.03)',
+                transition: 'transform .08s ease, border-color .12s ease'
+              }}
+            >
+              {/* box 16:9 */}
+              <div style={{ position: 'relative', width: '100%', paddingTop: '56.25%' }}>
+                <img
+                  src={thumb}
+                  alt={c.title ?? 'clip'}
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover'
+                  }}
+                  loading="lazy"
+                />
+                {/* overlay sfumato basso per testo */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'linear-gradient(to top, rgba(0,0,0,.55) 0%, rgba(0,0,0,0) 55%)'
+                  }}
+                />
+                {/* info testo */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: 10,
+                    right: 10,
+                    bottom: 10,
+                    display: 'grid',
+                    gap: 6
+                  }}
+                >
+                  <div style={{ fontWeight: 700, fontSize: 14, lineHeight: 1.2 }}>
+                    {c.title || 'Senza titolo'}
+                  </div>
+                  <div style={{ opacity: 0.8, fontSize: 12 }}>
+                    {c.author_name ? `by ${c.author_name}` : 'by anonymous'}
+                  </div>
+                </div>
+              </div>
+            </a>
+          );
+        })}
       </div>
-    </section>
-  );
-}
 
-function Empty({ text }: { text: string }) {
-  return <p style={{ opacity: 0.7 }}>{text}</p>;
-}
-
-export default function Page() {
-  return (
-    <main style={{ display: "grid", gap: 28 }}>
-      {/* HERO */}
-      <div style={{ display: "grid", gap: 12 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 800 }}>
-          Le migliori giocate FPS, curate dalla community
-        </h1>
-        <p style={{ opacity: 0.8 }}>
-          Invia una clip e vota quelle degli altri. Niente login (per ora).
-        </p>
-
-        <div>
-          <Link
-            href="/submit"
-            style={{
-              display: "inline-block",
-              padding: "10px 16px",
-              borderRadius: 8,
-              border: "1px solid rgba(255,255,255,.18)",
-              background: "rgba(255,255,255,.06)",
-              fontWeight: 600,
-            }}
-          >
-            Invia una clip →
-          </Link>
-        </div>
-      </div>
-
-      <hr style={{ border: "none", borderTop: "1px solid rgba(255,255,255,.08)" }} />
-
-      {/* PLACEHOLDER FEED */}
-      <div style={{ display: "grid", gap: 24 }}>
-        <Section title="Trending (ultime 24h)">
-          <Empty text="Ancora nessuna clip. Sii il primo a inviarne una!" />
-        </Section>
-
-        <Section title="Fresh drops (più recenti)">
-          <Empty text="Le clip più nuove appariranno qui." />
-        </Section>
-
-        <Section title="Top della settimana">
-          <Empty text="La classifica settimanale apparirà qui." />
-        </Section>
-      </div>
+      {clips.length === 0 && !error && (
+        <div style={{ opacity: 0.8 }}>Ancora nessuna clip. Vai su <a href="/submit">/submit</a> e inviane una!</div>
+      )}
     </main>
   );
 }
