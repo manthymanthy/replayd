@@ -1,7 +1,7 @@
 // src/app/page.tsx
 // Home / Feed
 import { createClient } from '@supabase/supabase-js';
-import { FeedListClient } from "../components/FeedListClient";
+import FeedListClient from "../components/FeedListClient";
 
 export const revalidate = 30;
 
