@@ -32,6 +32,16 @@ function timeAgo(s: string){
   const d = Math.floor(h/24);
   return `${d}d`;
 }
+function ymd(s: string){
+  const d = new Date(s);
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const dd = String(d.getDate()).padStart(2,'0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+function isNew(created_at: string){
+  // badge visibile per 72 ore dall'upload
+  return (Date.now() - new Date(created_at).getTime()) < 72*60*60*1000;
+}
 function domainFrom(url: string){
   try { return new URL(url).hostname.replace(/^www\./,""); }
   catch { return ""; }
@@ -82,9 +92,12 @@ export default function FeedListClient({ rows, empty }: { rows: Row[]; empty: st
                 />
 
                 <div className="info" onClick={() => setOpenUrl(r.url)} style={{cursor:"pointer"}}>
+                  <div className="badgerow">
+                    {isNew(r.created_at) && <span className="badge badge--new">NEW ENTRY</span>}
+                  </div>
                   <div className="title">{r.title || "Untitled"}</div>
                   <div className="meta">
-                    {domainFrom(r.url)}{r.author_name ? ` · ${r.author_name}` : ""} · {timeAgo(r.created_at)}
+                    {domainFrom(r.url)}{r.author_name ? ` · ${r.author_name}` : ""} · {timeAgo(r.created_at)} · {ymd(r.created_at)}
                   </div>
                 </div>
 
@@ -138,6 +151,17 @@ export default function FeedListClient({ rows, empty }: { rows: Row[]; empty: st
           gap:3px;
           min-width:0;
         }
+        .badgerow{ min-height:18px }
+        .badge{
+          display:inline-block;
+          font-size:11px; font-weight:900; letter-spacing:.08em;
+          padding:3px 8px; border-radius:999px;
+          border:1px solid var(--line-strong);
+          background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
+          color:#fff;
+          margin-bottom:4px;
+        }
+
         .title{
           font-weight:700;
           color:#fff;
