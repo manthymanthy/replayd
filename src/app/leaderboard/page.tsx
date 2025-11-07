@@ -9,9 +9,9 @@ type Row = {
   title: string | null;
   url: string;
   author_name: string | null;
-  votes: number;        // LeaderboardClient si aspetta "votes"
+  votes: number;        // compatibile con LeaderboardClient
   created_at: string;
-  game?: string | null;
+  game: string | null;
 };
 
 export default async function Page() {
@@ -20,8 +20,7 @@ export default async function Page() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  // 1) Tenta la view (score = conteggio voti reale)
-  let rows: Row[] = [];
+  // 1) Prova dalla VIEW (score reale)
   const { data: viewData, error: viewErr } = await supabase
     .from("clips_with_score")
     .select("id,title,url,author_name,score,created_at,game")
@@ -29,7 +28,9 @@ export default async function Page() {
     .order("created_at", { ascending: false })
     .limit(100);
 
-  if (!viewErr && viewData && viewData.length > 0) {
+  let rows: Row[] = [];
+
+  if (viewData && viewData.length > 0) {
     rows = viewData.map((r: any) => ({
       id: r.id,
       title: r.title,
@@ -40,42 +41,27 @@ export default async function Page() {
       game: r.game ?? null,
     }));
   } else {
-    const { data: dataView, error: errView } = await supabase
-  .from("clips_with_score")
-  .select("id,title,url,author_name,score,created_at,game")
-  .order("score", { ascending: false })
-  .order("created_at", { ascending: false })
-  .limit(100);
+    // 2) Fallback: clips “pure” (0 punti)
+    const { data: clipsData, error: clipsErr } = await supabase
+      .from("clips")
+      .select("id,title,url,author_name,created_at,game")
+      .order("created_at", { ascending: false })
+      .limit(100);
 
-let rows: Row[];
+    if (clipsErr) {
+      console.error("Fallback clips error:", clipsErr);
+    }
 
-if (dataView && dataView.length > 0) {
-  rows = dataView.map(r => ({
-    id: r.id,
-    title: r.title,
-    url: r.url,
-    author_name: r.author_name,
-    votes: Number(r.score ?? 0),
-    created_at: r.created_at,
-    game: r.game ?? null,
-  }));
-} else {
-  const { data: dataClips } = await supabase
-    .from("clips")
-    .select("id,title,url,author_name,created_at,game")
-    .order("created_at", { ascending: false })
-    .limit(100);
-
-  rows = (dataClips || []).map(r => ({
-    id: r.id,
-    title: r.title,
-    url: r.url,
-    author_name: r.author_name,
-    votes: 0,
-    created_at: r.created_at,
-    game: r.game ?? null,
-  }));
-}
+    rows = (clipsData || []).map((r: any) => ({
+      id: r.id,
+      title: r.title,
+      url: r.url,
+      author_name: r.author_name,
+      votes: 0,
+      created_at: r.created_at,
+      game: r.game ?? null,
+    }));
+  }
 
   return (
     <main className="home">
