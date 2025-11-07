@@ -3,7 +3,9 @@ import { createClient } from "@supabase/supabase-js";
 import FeedListClient from "../components/FeedListClient";
 import GameFilter from "../components/GameFilter";
 
-export const revalidate = 30;
+export const revalidate = 0;
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 
 type Row = {
   id: string;
