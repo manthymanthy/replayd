@@ -1,6 +1,7 @@
+// src/components/GameFilter.tsx
 "use client";
 
-import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function GameFilter({
   games,
@@ -9,35 +10,77 @@ export default function GameFilter({
   games: string[];
   active: string | null;
 }) {
+  const router = useRouter();
+  const search = useSearchParams();
+
+  function setGame(g?: string) {
+    const params = new URLSearchParams(search?.toString() || "");
+    if (!g) params.delete("game");
+    else params.set("game", g);
+    router.push(`/?${params.toString()}`, { scroll: false });
+  }
+
   return (
     <nav className="gf">
-      <Link href="/" className={`pill ${!active ? "is-active" : ""}`}>All</Link>
+      <button
+        className={`pill ${!active ? "is-active" : ""}`}
+        onClick={() => setGame(undefined)}
+        aria-current={!active ? "page" : undefined}
+      >
+        ALL
+      </button>
+
       {games.map((g) => (
-        <Link
+        <button
           key={g}
-          href={`/?game=${encodeURIComponent(g)}`}
           className={`pill ${active === g ? "is-active" : ""}`}
+          onClick={() => setGame(g)}
+          aria-current={active === g ? "page" : undefined}
+          title={g}
         >
-          {g}
-        </Link>
+          {g.toUpperCase()}
+        </button>
       ))}
 
       <style>{`
-        .gf{ display:flex; gap:10px; flex-wrap:wrap; margin:6px 0 8px }
-        .pill{
-          display:inline-flex; align-items:center; gap:6px;
-          padding:8px 12px; border-radius:999px;
-          border:1px solid var(--line);
-          background:var(--panel); color:#dcdcdc;
-          font-weight:800; letter-spacing:.02em; text-transform:lowercase;
-          transition: border-color .12s ease, background .12s ease, color .12s ease;
+        .gf{
+          display:flex; gap:8px;
+          overflow-x:auto; padding:2px 2px 6px;
+          scrollbar-width:none;
+          -ms-overflow-style:none;
+          margin:6px 0 12px;
         }
-        .pill:hover{ border-color:var(--line-strong) }
+        .gf::-webkit-scrollbar{ display:none; }
+
+        .pill{
+          --bd: var(--line);
+          font-size:11px; font-weight:800; letter-spacing:.10em;
+          padding:8px 10px;
+          border-radius:999px;
+          border:1px solid var(--bd);
+          color:#dcdcdc; background:transparent;
+          white-space:nowrap; cursor:pointer;
+          transition: border-color .12s ease, background .08s ease, transform .06s ease, box-shadow .12s ease;
+          text-transform:uppercase;
+        }
+        .pill:hover{
+          background:rgba(255,255,255,.04);
+          border-color:var(--line-strong);
+        }
+        .pill:active{ transform:translateY(1px); }
+
         .pill.is-active{
-          color:#8ecbff;
-          box-shadow: 0 0 0 1px rgba(142,203,255,.25) inset, 0 0 16px rgba(142,203,255,.12);
-          border-color: color-mix(in oklab, #8ecbff 50%, var(--line-strong));
-          background: color-mix(in oklab, var(--panel) 85%, #0b1a24 15%);
+          color:#eaf7ff;
+          --bd: #1f3242;
+          border-color: var(--bd);
+          box-shadow:
+            0 0 0 1px rgba(159,220,255,.10) inset,
+            0 0 22px rgba(159,220,255,.10);
+          background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+        }
+
+        @media (max-width: 700px){
+          .pill{ padding:7px 9px; font-size:10px; }
         }
       `}</style>
     </nav>
