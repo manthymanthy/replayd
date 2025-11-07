@@ -1,7 +1,6 @@
-// src/components/GameFilter.tsx
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 export default function GameFilter({
   games,
@@ -10,55 +9,37 @@ export default function GameFilter({
   games: string[];
   active: string | null;
 }) {
-  const router = useRouter();
-  const sp = useSearchParams();
-
-  function setGame(g: string | null) {
-    // ricostruisco i params per non perdere altri parametri futuri (paginazione ecc.)
-    const params = new URLSearchParams(sp?.toString() || "");
-    if (g) params.set("game", g);
-    else params.delete("game");
-
-    const qs = params.toString();
-    router.replace(qs ? `/?${qs}` : "/", { scroll: false });
-    router.refresh(); // <- re-render del server component senza full reload
-  }
-
   return (
-    <div className="filters">
-      <button
-        type="button"
-        onClick={() => setGame(null)}
-        className={`pill ${!active ? "is-active" : ""}`}
-      >
-        All
-      </button>
-
+    <nav className="gf">
+      <Link href="/" className={`pill ${!active ? "is-active" : ""}`}>All</Link>
       {games.map((g) => (
-        <button
+        <Link
           key={g}
-          type="button"
-          onClick={() => setGame(g)}
+          href={`/?game=${encodeURIComponent(g)}`}
           className={`pill ${active === g ? "is-active" : ""}`}
-          title={g}
         >
           {g}
-        </button>
+        </Link>
       ))}
 
       <style>{`
-        .filters{ display:flex; gap:8px; flex-wrap:wrap; margin:4px 0 10px }
+        .gf{ display:flex; gap:10px; flex-wrap:wrap; margin:6px 0 8px }
         .pill{
+          display:inline-flex; align-items:center; gap:6px;
           padding:8px 12px; border-radius:999px;
-          border:1px solid var(--line); background:var(--panel); color:#dcdcdc;
-          font-weight:700; letter-spacing:.02em; cursor:pointer;
+          border:1px solid var(--line);
+          background:var(--panel); color:#dcdcdc;
+          font-weight:800; letter-spacing:.02em; text-transform:lowercase;
+          transition: border-color .12s ease, background .12s ease, color .12s ease;
         }
         .pill:hover{ border-color:var(--line-strong) }
         .pill.is-active{
-          outline: 2px solid color-mix(in oklab, var(--accent) 60%, transparent);
-          color:#8ecaff;
+          color:#8ecbff;
+          box-shadow: 0 0 0 1px rgba(142,203,255,.25) inset, 0 0 16px rgba(142,203,255,.12);
+          border-color: color-mix(in oklab, #8ecbff 50%, var(--line-strong));
+          background: color-mix(in oklab, var(--panel) 85%, #0b1a24 15%);
         }
       `}</style>
-    </div>
+    </nav>
   );
 }
