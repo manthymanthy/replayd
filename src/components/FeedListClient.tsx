@@ -102,29 +102,62 @@ export function FeedListClient({ rows, empty }: { rows: Row[]; empty: string }) 
       <PlayerModal url={openUrl} onClose={() => setOpenUrl(null)} />
 
       <style>{`
-        .table{ border:1px solid var(--line); border-radius:12px; overflow:hidden; background:var(--panel) }
-        .tbody{ display:block }
-        .row{
-          display:grid; grid-template-columns: 120px 1fr 86px; gap:12px;
-          align-items:center; padding:12px 12px;
-          border-bottom:1px solid var(--line);
-        }
-        .row:hover{ background:#101010; border-color:var(--line-strong) }
-        .row:last-child{ border-bottom:none }
+  .table{
+    border:1px solid var(--line);
+    border-radius:12px;
+    overflow:hidden;
+    background:var(--panel);
+  }
+  .tbody{ display:block }
 
-        .thumb{ width:120px; height:68px; border-radius:8px; object-fit:cover; background:#000; }
-        .info{ display:grid; gap:3px; min-width:0 }
-        .title{ font-weight:700; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
-        .meta{ font-size:12px; color:#a6a6a6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  .row{
+    display:grid;
+    grid-template-columns: 120px 1fr 86px;
+    gap:12px;
+    align-items:center;
+    padding:12px 12px;
+    border-bottom:1px solid var(--line);
+    transition: background .08s ease, border-color .12s ease;
+  }
+  .row:hover{
+    background:#101010;
+    border-color:var(--line-strong);
+  }
+  .row:last-child{ border-bottom:none }
 
-        .votes{ display:grid; gap:6px; justify-items:end }
-        .upbtn{
-          padding:6px 10px; border-radius:8px; border:1px solid var(--line-strong);
-          background:rgba(255,255,255,.06); color:#fff; font-weight:800; cursor:pointer;
-        }
-        .upbtn:hover{ background:rgba(255,255,255,.1) }
-        .count{ font-weight:900; }
-      `}</style>
-    </>
-  );
-}
+  /* THUMB */
+  .thumb{
+    width:120px;
+    height:68px;
+    border-radius:8px;
+    object-fit:cover;
+    background:#000;
+  }
+
+  /* TEXT INFO */
+  .info{
+    display:grid;
+    gap:3px;
+    min-width:0;
+  }
+  .title{
+    font-weight:700;
+    color:#fff;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .meta{
+    font-size:12px;
+    color:#a6a6a6;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+
+  /* VOTE CHIP AREA */
+  .votes{
+    display:grid;
+    justify-items:end;
+  }
+`}</style>
