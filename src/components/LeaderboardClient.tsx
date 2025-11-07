@@ -1,4 +1,3 @@
-// src/components/LeaderboardClient.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -32,12 +31,9 @@ function getThumb(url: string){
   if (p.kind === "youtube") return `https://i.ytimg.com/vi/${p.id}/hqdefault.jpg`;
   try { return `${new URL(url).origin}/favicon.ico`; } catch { return "/favicon.ico"; }
 }
-
-/** Costruisce src di anteprima autoplay e muta per YouTube/Twitch clip */
 function buildEmbedSrc(url: string){
   const p = parseClip(url);
   if (p.kind === "youtube") {
-    // privacy-enhanced + autoplay mute + UI minimale
     return `https://www.youtube-nocookie.com/embed/${p.id}?autoplay=1&mute=1&playsinline=1&controls=0&modestbranding=1&rel=0`;
   }
   if (p.kind === "twitch-clip") {
@@ -46,19 +42,41 @@ function buildEmbedSrc(url: string){
   }
   return null;
 }
-
-/** rileva “no hover” (touch) per non creare iframes non cliccabili su mobile */
 const canHover = typeof window !== "undefined"
   ? window.matchMedia("(hover: hover)").matches
   : true;
 
 export default function LeaderboardClient({ rows }: { rows: Row[] }) {
-  const [openUrl, setOpenUrl] = useState<string | null>(null);
+  const [openIdx, setOpenIdx] = useState<number | null>(null);
   const [hoverId, setHoverId] = useState<string | null>(null);
-  const [activeHoverId, setActiveHoverId] = useState<string | null>(null); // quello che effettivamente riproduce
+  const [activeHoverId, setActiveHoverId] = useState<string | null>(null);
   const hoverTimer = useRef<number | null>(null);
 
-  // Quando entri su una riga: attiva dopo un piccolo delay per evitare flicker
+  // Body scroll lock quando overlay aperto
+  useEffect(() => {
+    if (openIdx !== null) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => { document.body.style.overflow = prev; };
+    }
+  }, [openIdx]);
+
+  // Tastiera per navigare tra le righe quando overlay aperto
+  useEffect(() => {
+    if (openIdx === null) return;
+    function onKey(e: KeyboardEvent){
+      if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
+        e.preventDefault();
+        setOpenIdx(i => (i! > 0 ? (i! - 1) : i));
+      } else if (e.key === "ArrowDown" || e.key === "ArrowRight") {
+        e.preventDefault();
+        setOpenIdx(i => (i! < rows.length - 1 ? (i! + 1) : i));
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [openIdx, rows.length]);
+
   function onRowEnter(id: string){
     if (!canHover) return;
     setHoverId(id);
@@ -71,12 +89,9 @@ export default function LeaderboardClient({ rows }: { rows: Row[] }) {
     if (activeHoverId === id) setActiveHoverId(null);
     if (hoverId === id) setHoverId(null);
   }
+  useEffect(() => () => { if (hoverTimer.current) window.clearTimeout(hoverTimer.current); }, []);
 
-  useEffect(() => {
-    return () => {
-      if (hoverTimer.current) window.clearTimeout(hoverTimer.current);
-    };
-  }, []);
+  const currentUrl = openIdx !== null ? rows[openIdx]?.url ?? null : null;
 
   return (
     <>
@@ -97,11 +112,13 @@ export default function LeaderboardClient({ rows }: { rows: Row[] }) {
               onMouseLeave={() => onRowLeave(r.id)}
             >
               <button
-                className="lb__row"
-                onClick={() => setOpenUrl(r.url)}
+                className={`lb__row ${i<10 ? 'lb__row--top10' : ''}`}
+                onClick={() => setOpenIdx(i)}
                 title="Play"
               >
-                <div className="lb__rank">#{String(i + 1).padStart(2, "0")}</div>
+                <div className={`lb__rank ${i===0?'gold':i===1?'silver':i===2?'bronze':''}`}>
+                  #{String(i + 1).padStart(2, "0")}
+                </div>
 
                 <div className="lb__col lb__main">
                   <div className="lb__title">{r.title || "Untitled"}</div>
@@ -121,7 +138,6 @@ export default function LeaderboardClient({ rows }: { rows: Row[] }) {
                       title="preview"
                       allow="autoplay; encrypted-media; picture-in-picture; clipboard-write"
                       allowFullScreen={false}
-                      // importantissimo: niente cattura eventi, così il click prende la riga
                       style={{ pointerEvents: "none" }}
                     />
                   )}
@@ -132,134 +148,69 @@ export default function LeaderboardClient({ rows }: { rows: Row[] }) {
         })}
       </div>
 
-      <PlayerModal url={openUrl} onClose={() => setOpenUrl(null)} />
+      <PlayerModal url={currentUrl} onClose={() => setOpenIdx(null)} />
 
-           <style>{`
-        /* — LIST CONTAINER — */
+      <style>{`
         .lb__list{
           border:1px solid var(--line);
           border-radius:14px;
           overflow:hidden;
           background:var(--panel);
         }
-        .lb__empty{
-          padding:24px; text-align:center; color:#a6a6a6;
-        }
+        .lb__empty{ padding:24px; text-align:center; color:#a6a6a6 }
 
-        /* — ROWS — */
-        .lb__rowWrap{ display:block } /* wrapper per gli eventi hover */
+        .lb__rowWrap{ display:block }
         .lb__row{
           width:100%;
           display:grid;
-          grid-template-columns: 90px 1fr 240px; /* thumb a destra */
-          gap:14px;
-          align-items:center;
+          grid-template-columns: 90px 1fr 240px;
+          gap:14px; align-items:center;
           padding:16px 18px;
-          background:transparent;
-          border:0;
-          border-bottom:1px solid var(--line);
-          color:inherit;
-          text-align:left;
-          cursor:pointer;
-          transition: background .07s ease, border-color .12s ease, box-shadow .12s ease, transform .04s ease;
+          background:transparent; border:0; border-bottom:1px solid var(--line);
+          color:inherit; text-align:left; cursor:pointer;
+          transition: background .07s ease, border-color .12s ease, box-shadow .12s ease;
           position:relative;
         }
-        .lb__row:last-child{ border-bottom:none }
-        .lb__row:hover{
-          background:#101010;
-          border-color:var(--line-strong);
-        }
+        .lb__row:hover{ background:#111; border-color:var(--line-strong) }
         .lb__row:active{ transform:translateY(1px) }
+        .lb__row:last-child{ border-bottom:none }
 
-        /* — RANK NUMBER — */
+        /* glow barra laterale per Top10 */
+        .lb__row--top10::before{
+          content:""; position:absolute; left:0; top:0; bottom:0; width:2px;
+          background: linear-gradient(180deg, color-mix(in oklab, var(--accent) 60%, transparent) 0%, transparent 100%);
+          opacity:.7;
+        }
+
         .lb__rank{
-          font-size:20px; font-weight:900; letter-spacing:.08em;
-          text-align:center; color:#fff;
+          font-size:20px; font-weight:900; letter-spacing:.08em; text-align:center; color:#fff;
+          text-shadow: 0 0 10px rgba(255,255,255,.12);
+        }
+        .lb__rank.gold{
+          color:#ffd76a;
+          text-shadow: 0 0 12px rgba(255,215,106,.45), 0 0 22px rgba(255,215,106,.25);
+        }
+        .lb__rank.silver{
+          color:#cfe1ff;
+          text-shadow: 0 0 12px rgba(207,225,255,.45), 0 0 22px rgba(207,225,255,.25);
+        }
+        .lb__rank.bronze{
+          color:#cd9b5a;
+          text-shadow: 0 0 12px rgba(205,155,90,.45), 0 0 22px rgba(205,155,90,.25);
         }
 
         .lb__main{ display:grid; gap:6px; min-width:0 }
-        .lb__title{
-          color:#fff; font-weight:800;
-          white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-        }
-        .lb__meta{
-          font-size:12px; color:#a6a6a6;
-          white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-        }
+        .lb__title{ color:#fff; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+        .lb__meta{ font-size:12px; color:#a6a6a6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
 
-        /* — THUMB/IFRAME RIGHT — */
         .lb__thumbBox{
-          position:relative;
-          width:100%; height:120px;
+          position:relative; width:100%; height:120px;
           border-radius:12px; overflow:hidden; background:#000;
           box-shadow: 0 0 0 1px rgba(255,255,255,.05) inset;
         }
-        .lb__thumb{
-          position:absolute; inset:0; width:100%; height:100%;
-          object-fit:cover; display:block;
-        }
-        .lb__iframe{
-          position:absolute; inset:0; width:100%; height:100%; border:0;
-        }
+        .lb__thumb{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block }
+        .lb__iframe{ position:absolute; inset:0; width:100%; height:100%; border:0 }
 
-        /* — ARCADE FLAIR PER LE PRIME POSIZIONI — */
-        /* #1: gold glow + crown */
-        .lb__rowWrap:nth-child(1) .lb__row{
-          box-shadow: 0 0 0 1px rgba(255,215,106,.18) inset,
-                      0 10px 35px rgba(255,215,106,.12);
-          background: linear-gradient(180deg, rgba(255,215,106,.06), transparent 28%);
-        }
-        .lb__rowWrap:nth-child(1) .lb__rank{
-          color:#ffd76a;
-          text-shadow: 0 0 14px rgba(255,215,106,.45), 0 0 2px rgba(255,215,106,.6);
-          position:relative;
-        }
-        .lb__rowWrap:nth-child(1) .lb__rank::after{
-          content:"👑";
-          font-size:14px;
-          position:absolute; top:-8px; right:12px;
-          filter: drop-shadow(0 2px 2px rgba(0,0,0,.35));
-        }
-
-        /* #2: silver/steel glow */
-        .lb__rowWrap:nth-child(2) .lb__row{
-          box-shadow: 0 0 0 1px rgba(200,215,235,.14) inset,
-                      0 8px 28px rgba(180,200,225,.10);
-          background: linear-gradient(180deg, rgba(200,215,235,.05), transparent 28%);
-        }
-        .lb__rowWrap:nth-child(2) .lb__rank{
-          color:#cfd8e6;
-          text-shadow: 0 0 10px rgba(200,215,235,.40), 0 0 2px rgba(200,215,235,.55);
-        }
-
-        /* #3: violet glow */
-        .lb__rowWrap:nth-child(3) .lb__row{
-          box-shadow: 0 0 0 1px rgba(205,155,255,.14) inset,
-                      0 8px 26px rgba(205,155,255,.10);
-          background: linear-gradient(180deg, rgba(205,155,255,.05), transparent 28%);
-        }
-        .lb__rowWrap:nth-child(3) .lb__rank{
-          color:#cd9bff;
-          text-shadow: 0 0 10px rgba(205,155,255,.40), 0 0 2px rgba(205,155,255,.55);
-        }
-
-        /* Prime 10: barra neon sottile a sinistra */
-        .lb__rowWrap:nth-child(-n+10) .lb__row::before{
-          content:"";
-          position:absolute; left:0; top:0; bottom:0; width:2px;
-          background: linear-gradient(180deg,
-            color-mix(in oklab, var(--accent) 65%, transparent) 0%,
-            transparent 100%);
-          opacity:.8;
-        }
-
-        /* Hover: piccola elevazione */
-        .lb__row:hover{
-          box-shadow: 0 0 0 1px rgba(255,255,255,.05) inset,
-                      0 6px 18px rgba(0,0,0,.28);
-        }
-
-        /* — RESPONSIVE — */
         @media(max-width:900px){
           .lb__row{ grid-template-columns: 70px 1fr 180px; }
           .lb__thumbBox{ height:100px; }
