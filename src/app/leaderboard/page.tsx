@@ -2,7 +2,7 @@
 import { createClient } from "@supabase/supabase-js";
 import LeaderboardClient from "../../components/LeaderboardClient";
 
-export const revalidate = 20;
+export const revalidate = 0;
 
 type Row = {
   id: string;
