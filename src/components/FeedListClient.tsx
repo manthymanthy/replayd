@@ -5,6 +5,7 @@ import PlayerModal from "./PlayerModal";
 import { parseClip } from "../lib/parseClip";
 import { createClient } from "@supabase/supabase-js";
 import { getDeviceId } from "../lib/device";
+import VoteChip from "./VoteChip";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -89,9 +90,8 @@ export function FeedListClient({ rows, empty }: { rows: Row[]; empty: string }) 
                 </div>
 
                 <div className="votes">
-                  <button className="upbtn" onClick={() => upvote(r.id)} title="Upvote +1">+1</button>
-                  <div className="count">{r.votes ?? 0}</div>
-                </div>
+  <VoteChip count={r.votes ?? 0} onClick={() => upvote(r.id)} />
+</div>
               </div>
             );
           })}
