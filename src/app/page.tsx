@@ -1,7 +1,7 @@
 // src/app/page.tsx
 import { createClient } from "@supabase/supabase-js";
 import FeedListClient from "../components/FeedListClient";
-import GameFilter from "../components/GameFilter"; // <-- nuovo
+import GameFilter from "../components/GameFilter";
 
 export const revalidate = 30;
 
@@ -34,35 +34,50 @@ export default async function Page({
     .not("game", "is", null);
 
   const games = Array.from(
-    new Set((gamesRaw || []).map((r: any) => (r.game || "").toString().trim()).filter(Boolean))
+    new Set(
+      (gamesRaw || [])
+        .map((r: any) => (r.game || "").toString().trim())
+        .filter(Boolean)
+    )
   ).sort();
-
-  // helper per applicare (eventuale) filtro gioco
-  const applyGame = (q: ReturnType<typeof supabase.from<"clips", Row>>) =>
-    activeGame ? q.eq("game", activeGame) : q;
 
   const now = new Date();
   const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
   const last7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
+  // ── Trending (24h)
+  const trendingSel = supabase
+    .from("clips")
+    .select("id,title,url,author_name,votes,created_at,game")
+    .gte("created_at", last24h)
+    .order("votes", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(20);
+  if (activeGame) trendingSel.eq("game", activeGame);
+
+  // ── Fresh (più recenti ma ordinati anche per voti)
+  const freshSel = supabase
+    .from("clips")
+    .select("id,title,url,author_name,votes,created_at,game")
+    .order("votes", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(20);
+  if (activeGame) freshSel.eq("game", activeGame);
+
+  // ── Top settimana (7d)
+  const topWeekSel = supabase
+    .from("clips")
+    .select("id,title,url,author_name,votes,created_at,game")
+    .gte("created_at", last7d)
+    .order("votes", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(20);
+  if (activeGame) topWeekSel.eq("game", activeGame);
+
   const [trendingRes, freshRes, topWeekRes] = await Promise.all([
-    applyGame(supabase.from("clips"))
-      .select("id,title,url,author_name,votes,created_at,game")
-      .gte("created_at", last24h)
-      .order("votes", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(20),
-    applyGame(supabase.from("clips"))
-      .select("id,title,url,author_name,votes,created_at,game")
-      .order("votes", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(20),
-    applyGame(supabase.from("clips"))
-      .select("id,title,url,author_name,votes,created_at,game")
-      .gte("created_at", last7d)
-      .order("votes", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(20),
+    trendingSel,
+    freshSel,
+    topWeekSel,
   ]);
 
   const trending = (trendingRes.data || []) as Row[];
@@ -94,7 +109,9 @@ export default async function Page({
         <FeedListClient rows={topWeek} empty="Once clips get votes, they’ll show up here." />
       </section>
 
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
         .home{ display:grid; gap:20px }
         .hero{ display:grid; gap:8px }
         .brand{
@@ -104,7 +121,9 @@ export default async function Page({
         .tag{ opacity:.75 }
         .block{ display:grid; gap:10px }
         .h2{ font-size:16px; font-weight:800; letter-spacing:.06em; color:#dcdcdc; margin-top:6px; }
-      `}}/>
+      `,
+        }}
+      />
     </main>
   );
 }
