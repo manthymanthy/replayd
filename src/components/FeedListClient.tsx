@@ -1,8 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import PlayerModal from "../components/PlayerModal";
+import PlayerModal from "./PlayerModal";
 import { parseClip } from "../lib/parseClip";
+import { createClient } from "@supabase/supabase-js";
+import { getDeviceId } from "../lib/device";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 type Row = {
   id: string;
@@ -28,52 +35,67 @@ function domainFrom(url: string){
 }
 function thumbFrom(url: string){
   const p = parseClip(url);
-  if (p.kind === "youtube" && p.id) {
-    // immagine molto leggera ma pulita
-    return `https://i.ytimg.com/vi/${p.id}/hqdefault.jpg`;
-  }
-  if (p.kind === "twitch-clip" && p.id) {
-    // best-effort: molte clip hanno questo pattern
-    return `https://clips-media-assets2.twitch.tv/${p.id}-preview-480x272.jpg`;
-  }
-  // fallback icon
+  if (p.kind === "youtube" && p.id) return `https://i.ytimg.com/vi/${p.id}/hqdefault.jpg`;
   try { return `${new URL(url).origin}/favicon.ico`; } catch { return "/favicon.ico"; }
 }
 
 export function FeedListClient({ rows, empty }: { rows: Row[]; empty: string }) {
+  const [data, setData] = useState<Row[]>(rows);
   const [openUrl, setOpenUrl] = useState<string | null>(null);
+
+  async function upvote(clipId: string){
+    const device = getDeviceId();
+
+    // Update ottimistico
+    setData(prev => prev.map(r => r.id === clipId ? ({...r, votes: (r.votes ?? 0) + 1}) : r));
+
+    const { error } = await supabase.from("votes").insert({ clip_id: clipId, fingerprint: device });
+
+    if (error) {
+      // se è unique violation (già votato), ripristina e avvisa
+      if ((error as any).code === "23505") {
+        setData(prev => prev.map(r => r.id === clipId ? ({...r, votes: Math.max(0, (r.votes ?? 1) - 1)}) : r));
+        alert("You already upvoted this clip on this device.");
+      } else {
+        setData(prev => prev.map(r => r.id === clipId ? ({...r, votes: Math.max(0, (r.votes ?? 1) - 1)}) : r));
+        alert("Vote failed. Please try again.");
+      }
+    }
+  }
 
   return (
     <>
       <div className="table">
         <div className="tbody">
-          {rows.map((r) => {
+          {data.map((r) => {
             const thumb = thumbFrom(r.url);
             return (
-              <button
-                key={r.id}
-                className="row"
-                onClick={() => setOpenUrl(r.url)}
-                title="Guarda"
-              >
+              <div key={r.id} className="row">
                 <img
                   className="thumb"
                   src={thumb}
                   alt=""
                   loading="lazy"
                   decoding="async"
+                  onClick={() => setOpenUrl(r.url)}
+                  style={{cursor:"pointer"}}
                 />
-                <div className="info">
+
+                <div className="info" onClick={() => setOpenUrl(r.url)} style={{cursor:"pointer"}}>
                   <div className="title">{r.title || "Untitled"}</div>
                   <div className="meta">
                     {domainFrom(r.url)}{r.author_name ? ` · ${r.author_name}` : ""} · {timeAgo(r.created_at)}
                   </div>
                 </div>
-                <div className="votes">{r.votes ?? 0}</div>
-              </button>
+
+                <div className="votes">
+                  <button className="upbtn" onClick={() => upvote(r.id)} title="Upvote +1">+1</button>
+                  <div className="count">{r.votes ?? 0}</div>
+                </div>
+              </div>
             );
           })}
-          {rows.length === 0 && <div className="empty">{empty}</div>}
+          {data.length === 0 && <div className="empty">{empty}</div>}
         </div>
       </div>
 
@@ -83,27 +105,25 @@ export function FeedListClient({ rows, empty }: { rows: Row[]; empty: string }) 
         .table{ border:1px solid var(--line); border-radius:12px; overflow:hidden; background:var(--panel) }
         .tbody{ display:block }
         .row{
-          width:100%;
-          display:grid; grid-template-columns: 120px 1fr 56px; gap:12px;
-          align-items:center; padding:10px 12px;
-          background:none; color:inherit; border:0; text-align:left;
+          display:grid; grid-template-columns: 120px 1fr 86px; gap:12px;
+          align-items:center; padding:12px 12px;
           border-bottom:1px solid var(--line);
-          cursor:pointer;
-          transition: background .06s ease, border-color .12s ease, transform .06s ease;
         }
         .row:hover{ background:#101010; border-color:var(--line-strong) }
-        .row:active{ transform: translateY(1px); }
         .row:last-child{ border-bottom:none }
 
-        .thumb{
-          width:120px; height:68px; border-radius:8px; object-fit:cover; background:#000;
-          box-shadow: 0 0 0 1px rgba(255,255,255,.04) inset;
-        }
-        .info{ display:grid; gap:4px; min-width:0 }
+        .thumb{ width:120px; height:68px; border-radius:8px; object-fit:cover; background:#000; }
+        .info{ display:grid; gap:3px; min-width:0 }
         .title{ font-weight:700; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
         .meta{ font-size:12px; color:#a6a6a6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
-        .votes{ text-align:right; font-weight:800; color:#cfcfcf }
-        .empty{ padding:18px; text-align:center; color:#a6a6a6 }
+
+        .votes{ display:grid; gap:6px; justify-items:end }
+        .upbtn{
+          padding:6px 10px; border-radius:8px; border:1px solid var(--line-strong);
+          background:rgba(255,255,255,.06); color:#fff; font-weight:800; cursor:pointer;
+        }
+        .upbtn:hover{ background:rgba(255,255,255,.1) }
+        .count{ font-weight:900; }
       `}</style>
     </>
   );
