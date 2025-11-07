@@ -12,7 +12,7 @@ type Row = {
   author_name: string | null;
   votes: number | null;
   created_at: string;
-  game?: string | null;
+  game: string | null;   // <-- obbligatorio (può essere null), non opzionale
 };
 
 export default async function Page({
