@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import PlayerModal from "@/components/PlayerModal";
+import PlayerModal from "./PlayerModal";
 
 export function FeedListClient({ rows, empty }: { rows: any[]; empty: string }) {
   const [openUrl, setOpenUrl] = useState<string | null>(null);
@@ -15,6 +15,7 @@ export function FeedListClient({ rows, empty }: { rows: any[]; empty: string }) 
     const d = Math.floor(h/24);
     return `${d}d`;
   }
+
   function domainFrom(url: string){
     try { return new URL(url).hostname.replace(/^www\./,""); }
     catch { return ""; }
