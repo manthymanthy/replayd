@@ -1,7 +1,7 @@
 // src/components/FeedListClient.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 import PlayerModal from "./PlayerModal";
@@ -40,7 +40,8 @@ function ymd(s: string){
   return `${d.getFullYear()}-${mm}-${dd}`;
 }
 function isNew(created_at: string){
-  return (Date.now() - new Date(created_at).getTime()) < 2 * 60 * 60 * 1000; // 2h
+  // NEW ENTRY visibile per 2 ore
+  return (Date.now() - new Date(created_at).getTime()) < 2 * 60 * 60 * 1000;
 }
 function domainFrom(url: string){
   try { return new URL(url).hostname.replace(/^www\./,""); }
@@ -58,6 +59,11 @@ function isHot(votes: number | null){
 export default function FeedListClient({ rows, empty }: { rows: Row[]; empty: string }) {
   const [data, setData] = useState<Row[]>(rows);
   const [openUrl, setOpenUrl] = useState<string | null>(null);
+
+  // 🔁 sincronizza quando il parent (Feed) cambia dataset (es. cambio filtro)
+  useEffect(() => {
+    setData(rows);
+  }, [rows]);
 
   async function upvote(clipId: string){
     const device = getDeviceId();
