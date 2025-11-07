@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import FeedListClient from "../components/FeedListClient";
 import GameFilter from "../components/GameFilter";
 
-export const revalidate = 0;                 // niente cache
+export const revalidate = 0;
 export const dynamic = 'force-dynamic';
 
 type Row = {
@@ -14,7 +14,7 @@ type Row = {
   author_name: string | null;
   votes: number | null;
   created_at: string;
-  game?: string | null;
+  game: string | null; // ← REQUIRED per allinearsi a FeedListClient
 };
 
 export default async function Page({
@@ -32,7 +32,7 @@ export default async function Page({
       ? decodeURIComponent(searchParams.game)
       : null;
 
-  // giochi disponibili (distinct fatto lato app)
+  // Giochi disponibili (distinct lato app)
   const { data: gamesRaw } = await supabase
     .from('clips')
     .select('game')
@@ -76,8 +76,8 @@ export default async function Page({
   ]);
 
   const trending = (trendingRes.data || []) as Row[];
-  const fresh = (freshRes.data || []) as Row[];
-  const topWeek = (topWeekRes.data || []) as Row[];
+  const fresh    = (freshRes.data || []) as Row[];
+  const topWeek  = (topWeekRes.data || []) as Row[];
 
   return (
     <main className="home">
