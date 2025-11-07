@@ -2,7 +2,7 @@
 import { createClient } from "@supabase/supabase-js";
 import LeaderboardClient from "../../components/LeaderboardClient";
 
-// per debug immediato (rimetti 20 dopo)
+// Durante il debug tienilo a 0; in prod porta a ~20
 export const revalidate = 0;
 
 type Row = {
@@ -10,8 +10,9 @@ type Row = {
   title: string | null;
   url: string;
   author_name: string | null;
-  votes: number;        // ⬅️ il client si aspetta "votes"
+  votes: number;        // mappiamo score -> votes
   created_at: string;
+  game: string | null;  // ⬅️ aggiunto
 };
 
 export default async function Page() {
@@ -20,10 +21,10 @@ export default async function Page() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  // Leggiamo dalla VIEW che conta i voti reali
+  // View con punteggio aggregato + game
   const { data, error } = await supabase
     .from("clips_with_score")
-    .select("id,title,url,author_name,score,created_at")
+    .select("id,title,url,author_name,score,created_at,game")
     .order("score", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(100);
@@ -32,7 +33,7 @@ export default async function Page() {
     console.error("Leaderboard query error:", error);
   }
 
-  // Mappa score -> votes per compatibilità con il componente
+  // score -> votes per compatibilità con il client
   const rows: Row[] = (data || []).map((r: any) => ({
     id: r.id,
     title: r.title,
@@ -40,6 +41,7 @@ export default async function Page() {
     author_name: r.author_name,
     votes: Number(r.score ?? 0),
     created_at: r.created_at,
+    game: r.game ?? null,
   }));
 
   return (
