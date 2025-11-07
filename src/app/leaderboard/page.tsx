@@ -1,6 +1,6 @@
 // src/app/leaderboard/page.tsx
 import { createClient } from '@supabase/supabase-js';
-import LeaderboardClient from '../../components/LeaderboardClient'; // <- relativo, non '@/'
+import LeaderboardClient from '../../components/LeaderboardClient'; // percorso relativo
 
 export const revalidate = 60;
 
@@ -19,6 +19,7 @@ export default async function LeaderboardPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
+  // Scope: last 30d, Top 100 by votes then recency
   const now = new Date();
   const last30d = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
@@ -28,7 +29,7 @@ export default async function LeaderboardPage() {
     .gte('created_at', last30d)
     .order('votes', { ascending: false })
     .order('created_at', { ascending: false })
-    .limit(50);
+    .limit(100);
 
   const rows = (data || []) as LbRow[];
 
@@ -36,7 +37,7 @@ export default async function LeaderboardPage() {
     <main className="lb">
       <header className="lb__hero">
         <h1 className="brand">R&nbsp;E&nbsp;P&nbsp;L&nbsp;A&nbsp;Y&nbsp;D</h1>
-        <p className="tag">Community-ranked FPS highlights. Hover to preview, click to play.</p>
+        <p className="tag">Top 100 Arcade Leaderboard — hover to preview, click to play.</p>
       </header>
 
       <LeaderboardClient rows={rows} />
