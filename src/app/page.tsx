@@ -29,10 +29,10 @@ export default async function Page({
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  // ——— elenco giochi distinti per la pill-bar
+  // ——— elenco giochi (distinct via Set)
   const { data: gamesRaw } = await supabase
     .from("clips")
-    .select("game", { distinct: true })
+    .select("game")            // ⬅️ rimosso { distinct: true }
     .not("game", "is", null);
 
   const games = Array.from(
@@ -45,13 +45,11 @@ export default async function Page({
   const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
   const last7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-  // helper per applicare il filtro gioco
   const applyGame = (q: any) =>
     gameFilter !== "all" ? q.eq("game", gameFilter) : q;
 
   const baseCols = "id,title,url,author_name,votes,created_at,game";
 
-  // Trending: ultime 24h, sempre per voti
   const trendingRes = await applyGame(
     supabase
       .from("clips")
@@ -62,19 +60,16 @@ export default async function Page({
       .limit(20)
   );
 
-  // Fresh: ordinamento controllato da sort toggle
   const freshQuery = applyGame(
     supabase.from("clips").select(baseCols).limit(20)
   );
   if (sort === "new") {
     freshQuery.order("created_at", { ascending: false }).order("votes", { ascending: false });
   } else {
-    // "top" (default)
     freshQuery.order("votes", { ascending: false }).order("created_at", { ascending: false });
   }
   const freshRes = await freshQuery;
 
-  // Top week: ultimi 7 giorni, per voti
   const topWeekRes = await applyGame(
     supabase
       .from("clips")
@@ -89,7 +84,6 @@ export default async function Page({
   const fresh = (freshRes.data || []) as Row[];
   const topWeek = (topWeekRes.data || []) as Row[];
 
-  // costruttore URL helper (mantiene game quando cambi sort)
   const u = (params: Record<string, string | undefined>) => {
     const sp = new URLSearchParams();
     const g = params.game ?? gameFilter;
@@ -102,13 +96,11 @@ export default async function Page({
 
   return (
     <main className="home">
-      {/* HERO */}
       <header className="hero">
         <h1 className="brand">R&nbsp;E&nbsp;P&nbsp;L&nbsp;A&nbsp;Y&nbsp;D</h1>
         <p className="tag">The sharpest FPS highlights — curated by the community.</p>
       </header>
 
-      {/* FILTER BAR */}
       <nav className="filterbar" aria-label="Game filter">
         <Pill href={u({ game: "all" })} active={gameFilter === "all"}>All</Pill>
         {games.map((g) => {
@@ -120,13 +112,11 @@ export default async function Page({
           );
         })}
         <div className="spacer" />
-        {/* SORT TOGGLES */}
         <span className="label">Sort</span>
         <Pill href={u({ sort: "top" })} active={sort === "top"}>Most Voted</Pill>
         <Pill href={u({ sort: "new" })} active={sort === "new"}>Newest</Pill>
       </nav>
 
-      {/* SECTIONS */}
       <section className="block">
         <h2 className="h2">Trending (last 24h){gameFilter !== "all" ? ` · ${gameFilter}` : ""}</h2>
         <FeedListClient rows={trending} empty="Nothing in the last 24 hours yet." />
@@ -148,44 +138,23 @@ export default async function Page({
       <style dangerouslySetInnerHTML={{ __html: `
         .home{ display:grid; gap:20px }
         .hero{ display:grid; gap:8px }
-        .brand{
-          font-size:28px; font-weight:900; letter-spacing:.36em;
-          color:#fff; margin:.2rem 0 .4rem; text-transform:uppercase;
-        }
+        .brand{ font-size:28px; font-weight:900; letter-spacing:.36em; color:#fff; margin:.2rem 0 .4rem; text-transform:uppercase; }
         .tag{ opacity:.75 }
 
-        .filterbar{
-          display:flex; gap:8px; flex-wrap:wrap; align-items:center;
-          border:1px solid var(--line); border-radius:12px;
-          padding:8px; background:var(--panel);
-        }
+        .filterbar{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; border:1px solid var(--line); border-radius:12px; padding:8px; background:var(--panel); }
         .spacer{ flex:1 }
         .label{ font-size:11px; opacity:.75; margin-right:2px; letter-spacing:.06em }
-
-        .pill{
-          display:inline-block; padding:8px 10px; border-radius:999px;
-          border:1px solid var(--line-strong);
-          background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
-          font-size:12px; font-weight:900; letter-spacing:.06em; color:#eaeaea;
-          transition: transform .06s ease, border-color .12s ease, background .12s ease;
-        }
+        .pill{ display:inline-block; padding:8px 10px; border-radius:999px; border:1px solid var(--line-strong); background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03)); font-size:12px; font-weight:900; letter-spacing:.06em; color:#eaeaea; transition: transform .06s ease, border-color .12s ease, background .12s ease; }
         .pill:hover{ transform:translateY(-1px); border-color:#3a3a3a }
-        .pill--active{
-          color:#9fdcff; border-color:#1f3242;
-          box-shadow:0 0 0 1px rgba(159,220,255,.10) inset, 0 0 18px rgba(159,220,255,.08);
-        }
+        .pill--active{ color:#9fdcff; border-color:#1f3242; box-shadow:0 0 0 1px rgba(159,220,255,.10) inset, 0 0 18px rgba(159,220,255,.08); }
 
         .block{ display:grid; gap:10px }
-        .h2{
-          font-size:16px; font-weight:800; letter-spacing:.06em;
-          color:#dcdcdc; margin-top:6px;
-        }
+        .h2{ font-size:16px; font-weight:800; letter-spacing:.06em; color:#dcdcdc; margin-top:6px; }
       `}}/>
     </main>
   );
 }
 
-/* ——— mini componente pill (server component OK) ——— */
 function Pill({ href, active, children }: { href: string; active?: boolean; children: React.ReactNode }) {
   return (
     <Link href={href} className={`pill ${active ? "pill--active" : ""}`}>
