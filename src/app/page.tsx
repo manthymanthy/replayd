@@ -1,6 +1,7 @@
+// src/app/page.tsx
 // Home / Feed
 import { createClient } from '@supabase/supabase-js';
-import { FeedListClient } from '../components/FeedListClient'; // <— percORSO RELATIVO
+import { FeedListClient } from "../components/FeedListClient";
 
 export const revalidate = 30;
 
@@ -20,26 +21,23 @@ export default async function Page() {
   );
 
   const now = new Date();
-  const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
-  const last7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const last24h = new Date(now.getTime() - 24*60*60*1000).toISOString();
+  const last7d  = new Date(now.getTime() - 7*24*60*60*1000).toISOString();
 
   const [trendingRes, freshRes, topWeekRes] = await Promise.all([
-    supabase
-      .from('clips')
+    supabase.from('clips')
       .select('id,title,url,author_name,votes,created_at')
       .gte('created_at', last24h)
       .order('votes', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(20),
 
-    supabase
-      .from('clips')
+    supabase.from('clips')
       .select('id,title,url,author_name,votes,created_at')
       .order('created_at', { ascending: false })
       .limit(20),
 
-    supabase
-      .from('clips')
+    supabase.from('clips')
       .select('id,title,url,author_name,votes,created_at')
       .gte('created_at', last7d)
       .order('votes', { ascending: false })
@@ -48,8 +46,8 @@ export default async function Page() {
   ]);
 
   const trending = (trendingRes.data || []) as Row[];
-  const fresh = (freshRes.data || []) as Row[];
-  const topWeek = (topWeekRes.data || []) as Row[];
+  const fresh    = (freshRes.data || []) as Row[];
+  const topWeek  = (topWeekRes.data || []) as Row[];
 
   return (
     <main className="home">
@@ -75,9 +73,7 @@ export default async function Page() {
         <FeedListClient rows={topWeek} empty="Appena ci saranno clip votate, le trovi qui." />
       </section>
 
-      <style
-        dangerouslySetInnerHTML={{
-          __html: `
+      <style dangerouslySetInnerHTML={{ __html: `
         .home{ display:grid; gap:20px }
         .hero{ display:grid; gap:8px }
         .brand{
@@ -92,9 +88,7 @@ export default async function Page() {
           font-size:16px; font-weight:800; letter-spacing:.06em;
           color:#dcdcdc; margin-top:6px;
         }
-      `,
-        }}
-      />
+      `}}/>
     </main>
   );
 }
