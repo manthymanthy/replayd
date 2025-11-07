@@ -1,5 +1,6 @@
 // Home / Feed
 import { createClient } from '@supabase/supabase-js';
+import { FeedListClient } from "@/components/FeedListClient";
 
 export const revalidate = 30;
 
@@ -73,17 +74,17 @@ export default async function Page() {
       {/* SECTIONS */}
       <section className="block">
         <h2 className="h2">Trending (ultime 24h)</h2>
-        <FeedList rows={trending} empty="Ancora niente nelle ultime 24 ore." />
+        <FeedListClient rows={trending} empty="Ancora niente nelle ultime 24 ore." />
       </section>
 
       <section className="block">
         <h2 className="h2">Fresh drops</h2>
-        <FeedList rows={fresh} empty="Le clip più nuove appariranno qui." />
+        <FeedListClient rows={fresh} empty="Le clip più nuove appariranno qui." />
       </section>
 
       <section className="block">
         <h2 className="h2">Top settimana</h2>
-        <FeedList rows={topWeek} empty="Appena ci saranno clip votate, le trovi qui." />
+        <FeedListClient rows={topWeek} empty="Appena ci saranno clip votate, le trovi qui." />
       </section>
 
       <style dangerouslySetInnerHTML={{ __html: `
@@ -110,7 +111,7 @@ export default async function Page() {
 /*   LISTA compatta    */
 /* —————————————————— */
 
-function FeedList({ rows, empty }: { rows: Row[]; empty: string }) {
+function FeedListClient({ rows, empty }: { rows: Row[]; empty: string }) {
   return (
     <div className="table">
       <div className="tbody">
