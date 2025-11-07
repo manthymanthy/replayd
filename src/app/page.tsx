@@ -1,5 +1,5 @@
 // src/app/page.tsx
-// Home / Feed con filtro "game"
+// Home / Feed con filtro "game" + sort toggles
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
 import FeedListClient from "../components/FeedListClient";
@@ -19,9 +19,10 @@ type Row = {
 export default async function Page({
   searchParams,
 }: {
-  searchParams?: { game?: string };
+  searchParams?: { game?: string; sort?: string };
 }) {
   const gameFilter = (searchParams?.game || "all").toLowerCase();
+  const sort = (searchParams?.sort || "top").toLowerCase(); // "top" | "new"
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -50,38 +51,54 @@ export default async function Page({
 
   const baseCols = "id,title,url,author_name,votes,created_at,game";
 
-  const [trendingRes, freshRes, topWeekRes] = await Promise.all([
-    applyGame(
-      supabase
-        .from("clips")
-        .select(baseCols)
-        .gte("created_at", last24h)
-        .order("votes", { ascending: false })
-        .order("created_at", { ascending: false })
-        .limit(20)
-    ),
-    applyGame(
-      supabase
-        .from("clips")
-        .select(baseCols)
-        .order("votes", { ascending: false })
-        .order("created_at", { ascending: false })
-        .limit(20)
-    ),
-    applyGame(
-      supabase
-        .from("clips")
-        .select(baseCols)
-        .gte("created_at", last7d)
-        .order("votes", { ascending: false })
-        .order("created_at", { ascending: false })
-        .limit(20)
-    ),
-  ]);
+  // Trending: ultime 24h, sempre per voti
+  const trendingRes = await applyGame(
+    supabase
+      .from("clips")
+      .select(baseCols)
+      .gte("created_at", last24h)
+      .order("votes", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(20)
+  );
+
+  // Fresh: ordinamento controllato da sort toggle
+  const freshQuery = applyGame(
+    supabase.from("clips").select(baseCols).limit(20)
+  );
+  if (sort === "new") {
+    freshQuery.order("created_at", { ascending: false }).order("votes", { ascending: false });
+  } else {
+    // "top" (default)
+    freshQuery.order("votes", { ascending: false }).order("created_at", { ascending: false });
+  }
+  const freshRes = await freshQuery;
+
+  // Top week: ultimi 7 giorni, per voti
+  const topWeekRes = await applyGame(
+    supabase
+      .from("clips")
+      .select(baseCols)
+      .gte("created_at", last7d)
+      .order("votes", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(20)
+  );
 
   const trending = (trendingRes.data || []) as Row[];
   const fresh = (freshRes.data || []) as Row[];
   const topWeek = (topWeekRes.data || []) as Row[];
+
+  // costruttore URL helper (mantiene game quando cambi sort)
+  const u = (params: Record<string, string | undefined>) => {
+    const sp = new URLSearchParams();
+    const g = params.game ?? gameFilter;
+    const s = params.sort ?? sort;
+    if (g && g !== "all") sp.set("game", g);
+    if (s && s !== "top") sp.set("sort", s);
+    const qs = sp.toString();
+    return qs ? `/?${qs}` : "/";
+  };
 
   return (
     <main className="home">
@@ -93,29 +110,38 @@ export default async function Page({
 
       {/* FILTER BAR */}
       <nav className="filterbar" aria-label="Game filter">
-        <Pill href="/" active={gameFilter === "all"}>
-          All
-        </Pill>
-        {games.map((g) => (
-          <Pill key={g} href={`/?game=${encodeURIComponent(g.toLowerCase())}`} active={gameFilter === g.toLowerCase()}>
-            {g}
-          </Pill>
-        ))}
+        <Pill href={u({ game: "all" })} active={gameFilter === "all"}>All</Pill>
+        {games.map((g) => {
+          const key = g.toLowerCase();
+          return (
+            <Pill key={g} href={u({ game: key })} active={gameFilter === key}>
+              {g}
+            </Pill>
+          );
+        })}
+        <div className="spacer" />
+        {/* SORT TOGGLES */}
+        <span className="label">Sort</span>
+        <Pill href={u({ sort: "top" })} active={sort === "top"}>Most Voted</Pill>
+        <Pill href={u({ sort: "new" })} active={sort === "new"}>Newest</Pill>
       </nav>
 
       {/* SECTIONS */}
       <section className="block">
-        <h2 className="h2">Trending (last 24h){gameFilter!=="all" ? ` · ${gameFilter}` : ""}</h2>
+        <h2 className="h2">Trending (last 24h){gameFilter !== "all" ? ` · ${gameFilter}` : ""}</h2>
         <FeedListClient rows={trending} empty="Nothing in the last 24 hours yet." />
       </section>
 
       <section className="block">
-        <h2 className="h2">Fresh drops{gameFilter!=="all" ? ` · ${gameFilter}` : ""}</h2>
+        <h2 className="h2">
+          {sort === "new" ? "Newest" : "Most Voted"}
+          {gameFilter !== "all" ? ` · ${gameFilter}` : ""}
+        </h2>
         <FeedListClient rows={fresh} empty="New clips will appear here." />
       </section>
 
       <section className="block">
-        <h2 className="h2">Top this week{gameFilter!=="all" ? ` · ${gameFilter}` : ""}</h2>
+        <h2 className="h2">Top this week{gameFilter !== "all" ? ` · ${gameFilter}` : ""}</h2>
         <FeedListClient rows={topWeek} empty="Once clips get votes, they’ll show up here." />
       </section>
 
@@ -129,10 +155,13 @@ export default async function Page({
         .tag{ opacity:.75 }
 
         .filterbar{
-          display:flex; gap:8px; flex-wrap:wrap;
+          display:flex; gap:8px; flex-wrap:wrap; align-items:center;
           border:1px solid var(--line); border-radius:12px;
           padding:8px; background:var(--panel);
         }
+        .spacer{ flex:1 }
+        .label{ font-size:11px; opacity:.75; margin-right:2px; letter-spacing:.06em }
+
         .pill{
           display:inline-block; padding:8px 10px; border-radius:999px;
           border:1px solid var(--line-strong);
