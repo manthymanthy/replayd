@@ -1,3 +1,4 @@
+// src/components/LeaderboardClient.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -11,6 +12,7 @@ type Row = {
   author_name: string | null;
   votes: number | null;
   created_at: string;
+  game: string | null; // ⬅️ NEW
 };
 
 function domainFrom(url: string){
@@ -31,6 +33,7 @@ function getThumb(url: string){
   if (p.kind === "youtube") return `https://i.ytimg.com/vi/${p.id}/hqdefault.jpg`;
   try { return `${new URL(url).origin}/favicon.ico`; } catch { return "/favicon.ico"; }
 }
+// Build autoplay+mute preview src
 function buildEmbedSrc(url: string){
   const p = parseClip(url);
   if (p.kind === "youtube") {
@@ -42,40 +45,20 @@ function buildEmbedSrc(url: string){
   }
   return null;
 }
+// Detect hover devices
 const canHover = typeof window !== "undefined"
   ? window.matchMedia("(hover: hover)").matches
   : true;
 
+function gameKey(g?: string|null){
+  return (g||"").trim().toLowerCase().replace(/\s+/g,'-');
+}
+
 export default function LeaderboardClient({ rows }: { rows: Row[] }) {
-  const [openIdx, setOpenIdx] = useState<number | null>(null);
+  const [openUrl, setOpenUrl] = useState<string | null>(null);
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [activeHoverId, setActiveHoverId] = useState<string | null>(null);
   const hoverTimer = useRef<number | null>(null);
-
-  // Body scroll lock quando overlay aperto
-  useEffect(() => {
-    if (openIdx !== null) {
-      const prev = document.body.style.overflow;
-      document.body.style.overflow = "hidden";
-      return () => { document.body.style.overflow = prev; };
-    }
-  }, [openIdx]);
-
-  // Tastiera per navigare tra le righe quando overlay aperto
-  useEffect(() => {
-    if (openIdx === null) return;
-    function onKey(e: KeyboardEvent){
-      if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
-        e.preventDefault();
-        setOpenIdx(i => (i! > 0 ? (i! - 1) : i));
-      } else if (e.key === "ArrowDown" || e.key === "ArrowRight") {
-        e.preventDefault();
-        setOpenIdx(i => (i! < rows.length - 1 ? (i! + 1) : i));
-      }
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [openIdx, rows.length]);
 
   function onRowEnter(id: string){
     if (!canHover) return;
@@ -91,18 +74,18 @@ export default function LeaderboardClient({ rows }: { rows: Row[] }) {
   }
   useEffect(() => () => { if (hoverTimer.current) window.clearTimeout(hoverTimer.current); }, []);
 
-  const currentUrl = openIdx !== null ? rows[openIdx]?.url ?? null : null;
-
   return (
     <>
       <div className="lb__list">
         {rows.length === 0 && <div className="lb__empty">No ranked clips yet.</div>}
 
         {rows.map((r, i) => {
+          const rank = i + 1;
           const nick = r.author_name?.trim() || "Unknown Player";
           const thumb = getThumb(r.url);
           const showPreview = canHover && activeHoverId === r.id;
           const previewSrc = showPreview ? buildEmbedSrc(r.url) : null;
+          const gkey = gameKey(r.game);
 
           return (
             <div
@@ -112,15 +95,20 @@ export default function LeaderboardClient({ rows }: { rows: Row[] }) {
               onMouseLeave={() => onRowLeave(r.id)}
             >
               <button
-                className={`lb__row ${i<10 ? 'lb__row--top10' : ''}`}
-                onClick={() => setOpenIdx(i)}
+                className={`lb__row ${rank<=3 ? 'lb__row--top3' : rank<=10 ? 'lb__row--top10' : ''}`}
+                onClick={() => setOpenUrl(r.url)}
                 title="Play"
               >
-                <div className={`lb__rank ${i===0?'gold':i===1?'silver':i===2?'bronze':''}`}>
-                  #{String(i + 1).padStart(2, "0")}
-                </div>
+                <div className="lb__rank">#{String(rank).padStart(2, "0")}</div>
 
                 <div className="lb__col lb__main">
+                  {/* GAME TAG */}
+                  <div className="lb__badgerow">
+                    {r.game && (
+                      <span className={`badge badge--game game--${gkey}`}>{r.game}</span>
+                    )}
+                  </div>
+
                   <div className="lb__title">{r.title || "Untitled"}</div>
                   <div className="lb__meta">
                     {nick} · {r.votes ?? 0} pts · {domainFrom(r.url)} · {timeAgo(r.created_at)}
@@ -148,7 +136,7 @@ export default function LeaderboardClient({ rows }: { rows: Row[] }) {
         })}
       </div>
 
-      <PlayerModal url={currentUrl} onClose={() => setOpenIdx(null)} />
+      <PlayerModal url={openUrl} onClose={() => setOpenUrl(null)} />
 
       <style>{`
         .lb__list{
@@ -164,52 +152,78 @@ export default function LeaderboardClient({ rows }: { rows: Row[] }) {
           width:100%;
           display:grid;
           grid-template-columns: 90px 1fr 240px;
-          gap:14px; align-items:center;
+          gap:14px;
+          align-items:center;
           padding:16px 18px;
-          background:transparent; border:0; border-bottom:1px solid var(--line);
-          color:inherit; text-align:left; cursor:pointer;
+          background:transparent;
+          border:0;
+          border-bottom:1px solid var(--line);
+          color:inherit;
+          text-align:left;
+          cursor:pointer;
           transition: background .07s ease, border-color .12s ease, box-shadow .12s ease;
           position:relative;
         }
+        .lb__row:last-child{ border-bottom:none }
         .lb__row:hover{ background:#111; border-color:var(--line-strong) }
         .lb__row:active{ transform:translateY(1px) }
-        .lb__row:last-child{ border-bottom:none }
 
-        /* glow barra laterale per Top10 */
+        /* Accenti rank: TOP3 glow + TOP10 neon bar */
+        .lb__row--top3{
+          box-shadow: 0 0 0 1px rgba(255,255,255,.02) inset, 0 8px 26px rgba(0,0,0,.28);
+          background: linear-gradient(180deg, rgba(255,255,255,.02), transparent);
+        }
+        .lb__row--top3 .lb__rank{
+          color:#ffd76a; /* oro soft */
+          text-shadow: 0 0 14px rgba(255,215,106,.25);
+        }
         .lb__row--top10::before{
-          content:""; position:absolute; left:0; top:0; bottom:0; width:2px;
-          background: linear-gradient(180deg, color-mix(in oklab, var(--accent) 60%, transparent) 0%, transparent 100%);
-          opacity:.7;
+          content:"";
+          position:absolute; left:0; top:0; bottom:0; width:2px;
+          background: linear-gradient(180deg, color-mix(in oklab, var(--accent) 65%, transparent) 0%, transparent 100%);
+          opacity:.8;
         }
 
         .lb__rank{
-          font-size:20px; font-weight:900; letter-spacing:.08em; text-align:center; color:#fff;
-          text-shadow: 0 0 10px rgba(255,255,255,.12);
-        }
-        .lb__rank.gold{
-          color:#ffd76a;
-          text-shadow: 0 0 12px rgba(255,215,106,.45), 0 0 22px rgba(255,215,106,.25);
-        }
-        .lb__rank.silver{
-          color:#cfe1ff;
-          text-shadow: 0 0 12px rgba(207,225,255,.45), 0 0 22px rgba(207,225,255,.25);
-        }
-        .lb__rank.bronze{
-          color:#cd9b5a;
-          text-shadow: 0 0 12px rgba(205,155,90,.45), 0 0 22px rgba(205,155,90,.25);
+          font-size:20px; font-weight:900; letter-spacing:.08em;
+          text-align:center; color:#fff;
         }
 
         .lb__main{ display:grid; gap:6px; min-width:0 }
+        .lb__badgerow{ display:flex; gap:6px; align-items:center; min-height:18px; flex-wrap:wrap }
+        .badge{
+          display:inline-block; font-size:11px; font-weight:900; letter-spacing:.08em;
+          padding:3px 8px; border-radius:999px;
+          border:1px solid var(--line-strong);
+          background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
+          color:#fff;
+        }
+        .badge--game{ color:#fff; opacity:.95 }
+
+        /* Palette giochi (coerente con feed) */
+        .game--arc, .game--arc-raiders{ color:#9fdcff; border-color:#1f3242; box-shadow:0 0 0 1px rgba(159,220,255,.08) inset }
+        .game--bf6, .game--battlefield-6{ color:#ffd76a; border-color:#3a331a; box-shadow:0 0 0 1px rgba(255,215,106,.08) inset }
+        .game--cod, .game--call-of-duty{ color:#c9ff6a; border-color:#28351e; box-shadow:0 0 0 1px rgba(201,255,106,.08) inset }
+        [class*="game--"]:not(.game--arc):not(.game--arc-raiders):not(.game--bf6):not(.game--battlefield-6):not(.game--cod):not(.game--call-of-duty){
+          color:#e6e6e6; border-color:#3a3a3a; box-shadow:0 0 0 1px rgba(255,255,255,.05) inset
+        }
+
         .lb__title{ color:#fff; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
         .lb__meta{ font-size:12px; color:#a6a6a6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
 
         .lb__thumbBox{
-          position:relative; width:100%; height:120px;
+          position:relative;
+          width:100%; height:120px;
           border-radius:12px; overflow:hidden; background:#000;
           box-shadow: 0 0 0 1px rgba(255,255,255,.05) inset;
         }
-        .lb__thumb{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block }
-        .lb__iframe{ position:absolute; inset:0; width:100%; height:100%; border:0 }
+        .lb__thumb{
+          position:absolute; inset:0; width:100%; height:100%;
+          object-fit:cover; display:block;
+        }
+        .lb__iframe{
+          position:absolute; inset:0; width:100%; height:100%; border:0;
+        }
 
         @media(max-width:900px){
           .lb__row{ grid-template-columns: 70px 1fr 180px; }
