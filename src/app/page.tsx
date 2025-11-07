@@ -4,8 +4,8 @@ import FeedListClient from "../components/FeedListClient";
 import GameFilter from "../components/GameFilter";
 
 export const revalidate = 0;
-export const dynamic = 'force-dynamic';
-export const fetchCache = 'force-no-store';
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 type Row = {
   id: string;
@@ -14,7 +14,7 @@ type Row = {
   author_name: string | null;
   votes: number | null;
   created_at: string;
-  game: string | null;   // <-- obbligatorio (può essere null), non opzionale
+  game: string | null; // required (nullable)
 };
 
 export default async function Page({
@@ -29,7 +29,7 @@ export default async function Page({
 
   const activeGame = searchParams?.game ?? null;
 
-  // elenco giochi (distinct lato client)
+  // games list (distinct client-side)
   const { data: gamesRaw } = await supabase
     .from("clips")
     .select("game")
@@ -47,7 +47,7 @@ export default async function Page({
   const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
   const last7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-  // ── Trending (24h)
+  // Trending (24h)
   const trendingSel = supabase
     .from("clips")
     .select("id,title,url,author_name,votes,created_at,game")
@@ -57,7 +57,7 @@ export default async function Page({
     .limit(20);
   if (activeGame) trendingSel.eq("game", activeGame);
 
-  // ── Fresh (più recenti ma ordinati anche per voti)
+  // Fresh (recenti ma ord. anche per voti)
   const freshSel = supabase
     .from("clips")
     .select("id,title,url,author_name,votes,created_at,game")
@@ -66,7 +66,7 @@ export default async function Page({
     .limit(20);
   if (activeGame) freshSel.eq("game", activeGame);
 
-  // ── Top settimana (7d)
+  // Top settimana (7d)
   const topWeekSel = supabase
     .from("clips")
     .select("id,title,url,author_name,votes,created_at,game")
@@ -93,22 +93,34 @@ export default async function Page({
         <p className="tag">The sharpest FPS highlights — curated by the community.</p>
       </header>
 
-      {/* FILTRO (client) */}
+      {/* FILTER */}
       <GameFilter games={games} active={activeGame} />
 
       <section className="block">
         <h2 className="h2">Trending (last 24h)</h2>
-        <FeedListClient rows={trending} empty="Nothing in the last 24 hours yet." />
+        <FeedListClient
+          key={`trending-${activeGame ?? "all"}`}
+          rows={trending}
+          empty="Nothing in the last 24 hours yet."
+        />
       </section>
 
       <section className="block">
         <h2 className="h2">Fresh drops</h2>
-        <FeedListClient rows={fresh} empty="New clips will appear here." />
+        <FeedListClient
+          key={`fresh-${activeGame ?? "all"}`}
+          rows={fresh}
+          empty="New clips will appear here."
+        />
       </section>
 
       <section className="block">
         <h2 className="h2">Top this week</h2>
-        <FeedListClient rows={topWeek} empty="Once clips get votes, they’ll show up here." />
+        <FeedListClient
+          key={`topweek-${activeGame ?? "all"}`}
+          rows={topWeek}
+          empty="Once clips get votes, they’ll show up here."
+        />
       </section>
 
       <style
