@@ -2,17 +2,16 @@
 import { createClient } from "@supabase/supabase-js";
 import LeaderboardClient from "../../components/LeaderboardClient";
 
-// Durante il debug tienilo a 0; in prod porta a ~20
-export const revalidate = 0;
+export const revalidate = 20;
 
 type Row = {
   id: string;
   title: string | null;
   url: string;
   author_name: string | null;
-  votes: number;        // mappiamo score -> votes
+  votes: number;        // LeaderboardClient si aspetta "votes"
   created_at: string;
-  game: string | null;  // ⬅️ aggiunto
+  game?: string | null;
 };
 
 export default async function Page() {
@@ -21,28 +20,44 @@ export default async function Page() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  // View con punteggio aggregato + game
-  const { data, error } = await supabase
+  // 1) Tenta la view (score = conteggio voti reale)
+  let rows: Row[] = [];
+  const { data: viewData, error: viewErr } = await supabase
     .from("clips_with_score")
     .select("id,title,url,author_name,score,created_at,game")
     .order("score", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(100);
 
-  if (error) {
-    console.error("Leaderboard query error:", error);
-  }
+  if (!viewErr && viewData && viewData.length > 0) {
+    rows = viewData.map((r: any) => ({
+      id: r.id,
+      title: r.title,
+      url: r.url,
+      author_name: r.author_name,
+      votes: Number(r.score ?? 0),
+      created_at: r.created_at,
+      game: r.game ?? null,
+    }));
+  } else {
+    // 2) FALLBACK: usa la tabella clips (mostra comunque qualcosa)
+    const { data: clipsData } = await supabase
+      .from("clips")
+      .select("id,title,url,author_name,votes,created_at,game")
+      .order("votes", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(100);
 
-  // score -> votes per compatibilità con il client
-  const rows: Row[] = (data || []).map((r: any) => ({
-    id: r.id,
-    title: r.title,
-    url: r.url,
-    author_name: r.author_name,
-    votes: Number(r.score ?? 0),
-    created_at: r.created_at,
-    game: r.game ?? null,
-  }));
+    rows = (clipsData || []).map((r: any) => ({
+      id: r.id,
+      title: r.title,
+      url: r.url,
+      author_name: r.author_name,
+      votes: Number(r.votes ?? 0),
+      created_at: r.created_at,
+      game: r.game ?? null,
+    }));
+  }
 
   return (
     <main className="home">
