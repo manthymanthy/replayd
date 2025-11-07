@@ -1,7 +1,7 @@
 // src/components/LeaderboardClient.tsx
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import PlayerModal from "./PlayerModal";
 import { parseClip } from "../lib/parseClip";
 
