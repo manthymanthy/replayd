@@ -21,66 +21,72 @@ export default function GameFilter({
   }
 
   return (
-    <nav className="gf">
+    <nav className="gf-min" aria-label="Game filter">
       <button
-        className={`pill ${!active ? "is-active" : ""}`}
+        className={`link ${!active ? "is-active" : ""}`}
         onClick={() => setGame(undefined)}
         aria-current={!active ? "page" : undefined}
       >
-        ALL
+        all
       </button>
 
       {games.map((g) => (
         <button
           key={g}
-          className={`pill ${active === g ? "is-active" : ""}`}
+          className={`link ${active === g ? "is-active" : ""}`}
           onClick={() => setGame(g)}
           aria-current={active === g ? "page" : undefined}
           title={g}
         >
-          {g.toUpperCase()}
+          {g}
         </button>
       ))}
 
       <style>{`
-        .gf{
-          display:flex; gap:8px;
-          overflow-x:auto; padding:2px 2px 6px;
-          scrollbar-width:none;
-          -ms-overflow-style:none;
-          margin:6px 0 12px;
+        .gf-min{
+          display:flex; gap:18px;
+          overflow-x:auto; padding:2px 2px 8px;
+          -ms-overflow-style:none; scrollbar-width:none;
+          margin:2px 0 10px;
         }
-        .gf::-webkit-scrollbar{ display:none; }
+        .gf-min::-webkit-scrollbar{ display:none; }
 
-        .pill{
-          --bd: var(--line);
-          font-size:11px; font-weight:800; letter-spacing:.10em;
-          padding:8px 10px;
-          border-radius:999px;
-          border:1px solid var(--bd);
-          color:#dcdcdc; background:transparent;
-          white-space:nowrap; cursor:pointer;
-          transition: border-color .12s ease, background .08s ease, transform .06s ease, box-shadow .12s ease;
-          text-transform:uppercase;
+        .link{
+          position:relative;
+          font: 700 12px/1.2 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Inter;
+          color:#bdbdbd;
+          text-transform:lowercase;
+          letter-spacing:.04em;
+          background:none; border:0; padding:8px 2px;
+          cursor:pointer; white-space:nowrap;
+          transition: color .12s ease;
         }
-        .pill:hover{
-          background:rgba(255,255,255,.04);
-          border-color:var(--line-strong);
+        .link::after{
+          content:"";
+          position:absolute; left:0; right:0; bottom:2px; height:2px;
+          background: transparent;
+          border-radius:2px;
+          transform: translateY(0);
+          transition: background .12s ease, box-shadow .12s ease;
         }
-        .pill:active{ transform:translateY(1px); }
-
-        .pill.is-active{
+        .link:hover{ color:#e6e6e6; }
+        .link:focus-visible{
+          outline:none;
+          box-shadow: 0 0 0 2px rgba(159,220,255,.18) inset;
+          border-radius:6px;
+        }
+        .link.is-active{
           color:#eaf7ff;
-          --bd: #1f3242;
-          border-color: var(--bd);
-          box-shadow:
-            0 0 0 1px rgba(159,220,255,.10) inset,
-            0 0 22px rgba(159,220,255,.10);
-          background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+        }
+        .link.is-active::after{
+          background: #7cc2ff;
+          box-shadow: 0 0 14px rgba(124,194,255,.45);
         }
 
-        @media (max-width: 700px){
-          .pill{ padding:7px 9px; font-size:10px; }
+        /* tocchi piccoli = hit area più grande */
+        @media (max-width:700px){
+          .gf-min{ gap:14px }
+          .link{ padding:10px 2px; font-weight:800 }
         }
       `}</style>
     </nav>
