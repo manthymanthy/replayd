@@ -2,9 +2,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { LbRow } from "@/app/leaderboard/page";
-import PlayerModal from "@/components/PlayerModal";
-import { parseClip } from "@/lib/parseClip";
+import PlayerModal from "./PlayerModal";
+import { parseClip } from "../lib/parseClip";
+
+type Row = {
+  id: string;
+  title: string | null;
+  url: string;
+  author_name: string | null;
+  votes: number | null;
+  created_at: string;
+};
 
 function domainFrom(url: string){
   try { return new URL(url).hostname.replace(/^www\./,''); }
@@ -22,19 +30,16 @@ function timeAgo(s: string){
 function getThumb(url: string){
   const p = parseClip(url);
   if (p.kind === "youtube") {
-    // fast, cacheable thumbnail
     return `https://i.ytimg.com/vi/${p.id}/hqdefault.jpg`;
   }
-  // Fallback minimal preview
-  return null;
+  return null; // fallback handled below
 }
 
-export default function LeaderboardClient({ rows }: { rows: LbRow[] }) {
+export default function LeaderboardClient({ rows }: { rows: Row[] }) {
   const firstUrl = rows[0]?.url ?? null;
   const [hoverUrl, setHoverUrl] = useState<string | null>(firstUrl);
   const [openUrl, setOpenUrl] = useState<string | null>(null);
 
-  // Keep preview valid if rows change
   useEffect(() => { if (!hoverUrl && firstUrl) setHoverUrl(firstUrl); }, [firstUrl, hoverUrl]);
 
   const preview = useMemo(() => {
