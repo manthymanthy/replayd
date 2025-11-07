@@ -1,5 +1,7 @@
 // src/components/GameFilter.tsx
-import Link from "next/link";
+"use client";
+
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function GameFilter({
   games,
@@ -8,49 +10,55 @@ export default function GameFilter({
   games: string[];
   active: string | null;
 }) {
-  const items = ["All", ...games];
+  const router = useRouter();
+  const sp = useSearchParams();
 
-  const hrefFor = (label: string) => {
-    if (label === "All") return "/";
-    const v = encodeURIComponent(label);
-    return `/?game=${v}`;
-  };
+  function setGame(g: string | null) {
+    // ricostruisco i params per non perdere altri parametri futuri (paginazione ecc.)
+    const params = new URLSearchParams(sp?.toString() || "");
+    if (g) params.set("game", g);
+    else params.delete("game");
+
+    const qs = params.toString();
+    router.replace(qs ? `/?${qs}` : "/", { scroll: false });
+    router.refresh(); // <- re-render del server component senza full reload
+  }
 
   return (
-    <nav className="gf">
-      {items.map((g) => {
-        const isActive =
-          (g === "All" && !active) || (active && g.toLowerCase() === active.toLowerCase());
-        return (
-          <Link
-            key={g}
-            href={hrefFor(g)}
-            prefetch
-            className={`gf__chip ${isActive ? "gf__chip--active" : ""}`}
-            aria-current={isActive ? "page" : undefined}
-          >
-            {g}
-          </Link>
-        );
-      })}
+    <div className="filters">
+      <button
+        type="button"
+        onClick={() => setGame(null)}
+        className={`pill ${!active ? "is-active" : ""}`}
+      >
+        All
+      </button>
+
+      {games.map((g) => (
+        <button
+          key={g}
+          type="button"
+          onClick={() => setGame(g)}
+          className={`pill ${active === g ? "is-active" : ""}`}
+          title={g}
+        >
+          {g}
+        </button>
+      ))}
 
       <style>{`
-        .gf{ display:flex; flex-wrap:wrap; gap:8px; margin:4px 0 8px }
-        .gf__chip{
-          display:inline-block; padding:8px 12px; border-radius:999px;
-          border:1px solid var(--line);
-          background:var(--panel); color:#fff; font-weight:700; font-size:12px;
-          letter-spacing:.02em;
-          text-decoration:none;
-          transition: border-color .12s ease, background .12s ease, transform .06s ease;
+        .filters{ display:flex; gap:8px; flex-wrap:wrap; margin:4px 0 10px }
+        .pill{
+          padding:8px 12px; border-radius:999px;
+          border:1px solid var(--line); background:var(--panel); color:#dcdcdc;
+          font-weight:700; letter-spacing:.02em; cursor:pointer;
         }
-        .gf__chip:hover{ border-color:var(--line-strong); background:#151515; transform:translateY(-1px) }
-        .gf__chip--active{
-          border-color:#3a3a3a;
-          background: color-mix(in oklab, var(--panel) 85%, #fff 15%);
-          box-shadow: 0 0 0 1px rgba(255,255,255,.05) inset;
+        .pill:hover{ border-color:var(--line-strong) }
+        .pill.is-active{
+          outline: 2px solid color-mix(in oklab, var(--accent) 60%, transparent);
+          color:#8ecaff;
         }
       `}</style>
-    </nav>
+    </div>
   );
 }
