@@ -9,7 +9,7 @@ type Row = {
   title: string | null;
   url: string;
   author_name: string | null;
-  votes: number | null;
+  score: number;          // <— usa score
   created_at: string;
 };
 
