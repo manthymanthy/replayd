@@ -20,11 +20,11 @@ export default async function Page() {
   );
 
   const { data } = await supabase
-    .from("clips")
-    .select("id,title,url,author_name,votes,created_at")
-    .order("votes", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(100);
+  .from("clips_with_score")
+  .select("id,title,url,author_name,score,created_at")
+  .order("score", { ascending: false })
+  .order("created_at", { ascending: false })
+  .limit(100);
 
   return (
     <main className="home">
