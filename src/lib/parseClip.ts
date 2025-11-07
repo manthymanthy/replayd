@@ -1,35 +1,38 @@
-// Capisce se l'URL è YouTube o Twitch (clip) e ne estrae l'ID
+// src/lib/parseClip.ts
 export type Parsed =
   | { kind: "youtube"; id: string }
   | { kind: "twitch-clip"; id: string }
-  | { kind: "unknown" };
+  | { kind: "unknown"; id: "" };
 
 export function parseClip(url: string): Parsed {
   try {
     const u = new URL(url);
-    const h = u.hostname.replace(/^www\./, "");
-    // YouTube
-    if (h === "youtube.com" || h === "youtu.be") {
+
+    // YouTube (watch, short, youtu.be)
+    if (u.hostname.includes("youtube.com") || u.hostname.includes("youtu.be")) {
       // youtu.be/<id>
-      if (h === "youtu.be") {
-        const id = u.pathname.split("/").filter(Boolean)[0];
-        return id ? { kind: "youtube", id } : { kind: "unknown" };
+      if (u.hostname === "youtu.be") {
+        const id = u.pathname.split("/")[1] || "";
+        if (id) return { kind: "youtube", id };
       }
-      // youtube.com/watch?v=<id>  | /shorts/<id>
+      // /watch?v=<id>
       const v = u.searchParams.get("v");
       if (v) return { kind: "youtube", id: v };
-      const shorts = u.pathname.match(/\/shorts\/([a-zA-Z0-9_-]{6,})/);
-      if (shorts?.[1]) return { kind: "youtube", id: shorts[1] };
+      // /shorts/<id>
+      if (u.pathname.startsWith("/shorts/")) {
+        const id = u.pathname.split("/")[2] || "";
+        if (id) return { kind: "youtube", id };
+      }
     }
 
-    // Twitch clip: clips.twitch.tv/<slug>
-    if (h === "clips.twitch.tv") {
-      const slug = u.pathname.split("/").filter(Boolean)[0];
-      return slug ? { kind: "twitch-clip", id: slug } : { kind: "unknown" };
+    // Twitch clip (clips.twitch.tv/<id>)
+    if (u.hostname.includes("clips.twitch.tv")) {
+      const id = u.pathname.replace(/^\//, "");
+      if (id) return { kind: "twitch-clip", id };
     }
 
-    return { kind: "unknown" };
+    return { kind: "unknown", id: "" };
   } catch {
-    return { kind: "unknown" };
+    return { kind: "unknown", id: "" };
   }
 }
