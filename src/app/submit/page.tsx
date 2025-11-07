@@ -8,7 +8,7 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// accettiamo per ora YouTube/Twitch
+// For now we accept YouTube/Twitch links
 const SAFE_URL = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be|clips\.twitch\.tv|www\.twitch\.tv\/clips)/i;
 
 export default function SubmitPage() {
@@ -23,11 +23,11 @@ export default function SubmitPage() {
     setMsg(null);
 
     if (!url || !title) {
-      setMsg({ type: 'err', text: 'Inserisci almeno URL e Titolo.' });
+      setMsg({ type: 'err', text: 'Please provide at least URL and Title.' });
       return;
     }
     if (!SAFE_URL.test(url)) {
-      setMsg({ type: 'err', text: 'Per ora accettiamo solo link YouTube o Twitch.' });
+      setMsg({ type: 'err', text: 'For now we only accept YouTube or Twitch links.' });
       return;
     }
 
@@ -39,12 +39,12 @@ export default function SubmitPage() {
           url,
           title,
           author_name: author || null,
-          // game/votes/status hanno default lato DB
+          // game/votes/status have DB defaults
         });
 
-      if (error) setMsg({ type: 'err', text: `Errore salvataggio: ${error.message}` });
+      if (error) setMsg({ type: 'err', text: `Save failed: ${error.message}` });
       else {
-        setMsg({ type: 'ok', text: 'Clip inviata! Controlla la tabella clips su Supabase.' });
+        setMsg({ type: 'ok', text: 'Clip submitted! Check the “clips” table on Supabase.' });
         setUrl(''); setTitle(''); setAuthor('');
       }
     } finally {
@@ -54,7 +54,7 @@ export default function SubmitPage() {
 
   return (
     <section className="page">
-      <h1 className="h1">Invia una clip (URL)</h1>
+      <h1 className="h1">Submit a clip (URL)</h1>
 
       <form onSubmit={onSubmit} className="stack">
         <input
@@ -66,23 +66,23 @@ export default function SubmitPage() {
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Titolo"
+          placeholder="Title"
           className="field"
         />
         <input
           value={author}
           onChange={(e) => setAuthor(e.target.value)}
-          placeholder="Autore / Nick (opzionale)"
+          placeholder="Author / Nick (optional)"
           className="field"
         />
 
         <button className="btn" disabled={loading}>
-          {loading ? 'Invio…' : 'Invia clip'}
+          {loading ? 'Sending…' : 'Submit clip'}
         </button>
       </form>
 
       <p className="muted">
-        MVP: salviamo in DB con RLS e validazione URL base. Anti-spam avanzato e moderazione arriveranno dopo.
+        MVP: we store to DB with RLS and basic URL validation. Advanced anti-spam and moderation will come next.
       </p>
 
       {msg && (
