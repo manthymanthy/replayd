@@ -9,58 +9,59 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// Accept only YouTube / Twitch
-const SAFE_URL =
-  /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|clips\.twitch\.tv\/|www\.twitch\.tv\/clips\/)/i;
+// Accept only YouTube / Twitch clip links (can expand later)
+const SAFE_URL = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be|clips\.twitch\.tv|www\.twitch\.tv\/clips)/i;
 
 export default function SubmitPage() {
   const [url, setUrl] = useState('');
   const [title, setTitle] = useState('');
-  const [creator, setCreator] = useState('');
+  const [author, setAuthor] = useState('');
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
-
-  function onUrl(e: ChangeEvent<HTMLInputElement>) { setUrl(e.target.value.trim()); }
-  function onTitle(e: ChangeEvent<HTMLInputElement>) { setTitle(e.target.value); }
-  function onCreator(e: ChangeEvent<HTMLInputElement>) { setCreator(e.target.value); }
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setMsg(null);
 
-    // Client validations
-    if (!url || !title || !creator) {
-      setMsg({ type: 'err', text: 'All fields are required.' });
+    // Basic required validation
+    if (!url.trim() || !title.trim() || !author.trim()) {
+      setMsg({ type: 'err', text: 'Please complete all fields.' });
       return;
     }
-    if (!SAFE_URL.test(url)) {
-      setMsg({ type: 'err', text: 'Only YouTube or Twitch links are allowed.' });
+    if (!SAFE_URL.test(url.trim())) {
+      setMsg({ type: 'err', text: 'For now we only accept YouTube or Twitch clip links.' });
       return;
     }
 
     setLoading(true);
     try {
+      // DUPLICATE CHECK
+      const { data: dup } = await supabase
+        .from('clips')
+        .select('id')
+        .eq('url', url.trim())
+        .maybeSingle();
+
+      if (dup) {
+        setMsg({ type: 'err', text: 'This link is already on REPLAYD.' });
+        return;
+      }
+
+      // INSERT (game fixed to Arc Raiders)
       const { error } = await supabase.from('clips').insert({
-        url,
-        title,
-        author_name: creator,
-        game: 'Arc Raiders', // locked to Arc Raiders for the initial phase
+        url: url.trim(),
+        title: title.trim(),
+        author_name: author.trim(),
+        game: 'Arc Raiders',
       });
 
       if (error) {
-        // Unique-URL violation (duplicate)
-        // Postgres duplicate key is 23505; Supabase forwards code in error.code
-        // @ts-ignore
-        if (error.code === '23505') {
-          setMsg({ type: 'err', text: 'This clip is already on Replayd.' });
-        } else {
-          setMsg({ type: 'err', text: `Save failed: ${error.message}` });
-        }
+        setMsg({ type: 'err', text: `Save failed: ${error.message}` });
       } else {
-        setMsg({ type: 'ok', text: 'Clip submitted! Thanks for contributing to Replayd.' });
+        setMsg({ type: 'ok', text: 'Clip submitted. Thanks for contributing to the Arc Raiders feed!' });
         setUrl('');
         setTitle('');
-        setCreator('');
+        setAuthor('');
       }
     } finally {
       setLoading(false);
@@ -69,63 +70,74 @@ export default function SubmitPage() {
 
   return (
     <section className="page">
-      <h1 className="h1">Submit an Arc Raiders clip</h1>
-      <p className="lede">
-        Replayd is starting focused on <strong>Arc Raiders</strong>. Share epic moments from creators.
-        Please provide the <strong>original creator name</strong> and a clear <strong>title</strong>.
-        Only YouTube/Twitch links are accepted for now.
+      <h1 className="h1">Submit a clip (URL)</h1>
+
+      <p className="intro">
+        REPLAYD is currently focused on <b>Arc Raiders</b>. Please submit epic moments, personal records,
+        unique plays — strictly via YouTube or Twitch clip links. All fields are required.
       </p>
 
       <form onSubmit={onSubmit} className="stack" noValidate>
         <div className="fieldWrap">
-          <label className="label">Video URL (YouTube / Twitch)</label>
+          <label className="label">Clip URL</label>
           <input
             value={url}
-            onChange={onUrl}
-            placeholder="https://youtube.com/watch?v=…  or  https://clips.twitch.tv/…"
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setUrl(e.target.value)}
+            placeholder="YouTube/Twitch URL"
             className="field"
             required
             inputMode="url"
-            aria-invalid={(!url || !SAFE_URL.test(url)) ? true : false}
+            aria-invalid={(!url).toString()}
           />
         </div>
 
-        <div className="cols">
-          <div className="fieldWrap">
-            <label className="label">Title</label>
-            <input
-              value={title}
-              onChange={onTitle}
-              placeholder="Original title or a concise description"
-              className="field"
-              required
-              aria-invalid={!title ? true : false}
-            />
-          </div>
+        <div className="fieldWrap">
+          <label className="label">Title</label>
+          <input
+            value={title}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
+            placeholder="Original title or a clear, accurate title"
+            className="field"
+            required
+            aria-invalid={(!title).toString()}
+          />
+        </div>
 
-          <div className="fieldWrap">
-            <label className="label">Creator</label>
-            <input
-              value={creator}
-              onChange={onCreator}
-              placeholder="Channel / Nickname"
-              className="field"
-              required
-              aria-invalid={!creator ? true : false}
-            />
-          </div>
+        <div className="fieldWrap">
+          <label className="label">Creator</label>
+          <input
+            value={author}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setAuthor(e.target.value)}
+            placeholder="Channel / Creator name"
+            className="field"
+            required
+            aria-invalid={(!author).toString()}
+          />
         </div>
 
         <div className="fieldWrap">
           <label className="label">Game</label>
-          <input className="field" value="Arc Raiders" readOnly aria-readonly="true" />
-          <p className="help">We’re in a focused beta — only Arc Raiders clips for now.</p>
+          <input
+            className="field field--readonly"
+            value="Arc Raiders"
+            readOnly
+            aria-readonly="true"
+            title="Fixed for the current beta phase"
+          />
+          <p className="help">During the beta, REPLAYD accepts Arc Raiders clips only.</p>
         </div>
 
         <button className="btn" disabled={loading}>
-          {loading ? 'Submitting…' : 'Submit clip'}
+          {loading ? 'Sending…' : 'Submit clip'}
         </button>
       </form>
+
+      <div className="disclaimer">
+        <p>
+          By submitting, you confirm this is a public clip on YouTube or Twitch and that you attribute the original creator.
+          REPLAYD embeds links and does not host videos. Duplicate links are not allowed.
+        </p>
+      </div>
 
       {msg && (
         <div className={`notice ${msg.type === 'ok' ? 'notice--ok' : 'notice--err'}`}>
@@ -136,23 +148,22 @@ export default function SubmitPage() {
       <style dangerouslySetInnerHTML={{ __html: `
         .page{ display:grid; gap:16px; }
         .h1{ font-size:22px; font-weight:800; letter-spacing:.02em; margin:4px 0 2px }
-        .lede{ opacity:.8; max-width:72ch }
-        .stack{ display:grid; gap:14px; max-width:820px }
-        .cols{ display:grid; gap:14px; grid-template-columns: 1fr 1fr }
-        @media(max-width:720px){ .cols{ grid-template-columns: 1fr } }
+        .intro{ opacity:.85 }
 
-        .label{ font-size:12px; text-transform:uppercase; letter-spacing:.08em; opacity:.8; margin-bottom:6px; display:block }
-        .help{ font-size:12px; opacity:.65; margin:6px 0 0 }
-
+        .stack{ display:grid; gap:12px; max-width:720px }
+        .fieldWrap{ display:grid; gap:6px }
+        .label{ font-size:12px; opacity:.75; letter-spacing:.06em; text-transform:uppercase }
         .field{
           padding:12px 14px;
           border-radius:10px;
           border:1px solid var(--line);
           background:var(--panel);
           color:var(--text);
-          width:100%;
         }
         .field:hover{ border-color:var(--line-strong) }
+        .field--readonly{ opacity:.8; cursor:not-allowed }
+
+        .help{ margin:4px 0 0; font-size:12px; opacity:.65 }
 
         .btn{
           padding:12px 16px; border-radius:10px;
@@ -164,6 +175,10 @@ export default function SubmitPage() {
         }
         .btn:hover{ border-color:#3a3a3a; transform:translateY(-1px) }
         .btn:disabled{ opacity:.6; cursor:not-allowed; transform:none }
+
+        .disclaimer{
+          margin-top:4px; opacity:.75; font-size:13px;
+        }
 
         .notice{
           margin-top:8px;
