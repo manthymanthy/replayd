@@ -72,7 +72,7 @@ export default async function Page() {
       {/* HERO */}
       <header className="hero">
         <h1 className="brand">R&nbsp;E&nbsp;P&nbsp;L&nbsp;A&nbsp;Y&nbsp;D</h1>
-        <p className="tag">The sharpest FPS highlights — curated by the community.</p>
+        <p className="tag">Top plays, ranked by the community.</p>
 
         {/* Arc-only banner */}
         <div className="notice">
