@@ -1,81 +1,84 @@
 // src/components/GameFilter.tsx
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
-type Props = {
+export default function GameFilter({
+  games,
+  active,
+}: {
   games: string[];
   active: string | null;
-};
-
-export default function GameFilter({ games, active }: Props) {
+}) {
   const router = useRouter();
   const pathname = usePathname();
-  const search = useSearchParams();
+  const searchParams = useSearchParams();
 
-  // Per ora consentiamo SOLO "Arc Raiders" (oltre ad "All")
+  // Costruiamo l’elenco finale: "All" + giochi (deduplicati e ordinati)
   const items = useMemo(() => {
-    const allowed = new Set(["Arc Raiders"]);
-    const hasArc = games.some(g => g.trim().toLowerCase() === "arc raiders");
-    const list = ["All"];
-    if (hasArc) list.push("Arc Raiders");
-    else list.push("Arc Raiders"); // lo mostriamo comunque
-    return list;
+    const set = new Set<string>(games.map((g) => (g || "").trim()).filter(Boolean));
+    return ["All", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
   }, [games]);
 
-  function setParam(nextGame: string | null) {
-    const sp = new URLSearchParams(search.toString());
-    if (!nextGame || nextGame === "All") {
-      sp.delete("game");
-    } else {
-      sp.set("game", nextGame);
-    }
-    router.replace(`${pathname}?${sp.toString()}`, { scroll: false });
-  }
+  const handleSelect = useCallback(
+    (value: string) => {
+      const params = new URLSearchParams(searchParams?.toString() || "");
+      if (value === "All") {
+        params.delete("game");
+      } else {
+        params.set("game", value);
+      }
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+      router.refresh(); // forza aggiornamento senza reload manuale
+    },
+    [pathname, router, searchParams]
+  );
+
+  const isActive = (value: string) =>
+    (value === "All" && !active) || value === active;
 
   return (
-    <nav className="gf">
-      {items.map((label) => {
-        const isActive =
-          (label === "All" && !active) ||
-          (active && label.toLowerCase() === active.toLowerCase());
-        return (
-          <button
-            key={label}
-            className={`pill ${isActive ? "is-active" : ""}`}
-            onClick={() => setParam(label === "All" ? null : label)}
-            aria-pressed={isActive}
-          >
-            {label}
-          </button>
-        );
-      })}
+    <div className="gf" role="radiogroup" aria-label="Filter by game">
+      {items.map((g) => (
+        <button
+          key={g}
+          role="radio"
+          aria-checked={isActive(g)}
+          className={`gf__chip ${isActive(g) ? "gf__chip--on" : ""}`}
+          onClick={() => handleSelect(g)}
+          title={g === "All" ? "Show all games" : `Only ${g}`}
+        >
+          {g}
+        </button>
+      ))}
 
       <style>{`
         .gf{
-          display:flex; gap:8px; align-items:center;
-          padding:6px; border:1px solid var(--line);
-          border-radius:12px; background:var(--panel);
-          overflow-x:auto;
+          display:flex; gap:8px; flex-wrap:wrap;
+          padding:6px 0 2px;
         }
-        .pill{
-          appearance:none; border:1px solid var(--line);
-          background:transparent; color:#ddd;
-          font-weight:800; letter-spacing:.04em;
-          padding:8px 10px; border-radius:10px;
-          cursor:pointer; transition: border-color .12s ease, background .12s ease, transform .04s ease;
-          white-space:nowrap;
+        .gf__chip{
+          -webkit-tap-highlight-color: transparent;
+          padding:6px 10px;
+          border-radius:999px;
+          border:1px solid var(--line);
+          background:var(--panel);
+          color:#d7d7d7;
+          font-weight:800; letter-spacing:.02em;
+          font-size:12px;
+          cursor:pointer;
+          transition:transform .06s ease, border-color .12s ease, background .12s ease;
         }
-        .pill:hover{ border-color:var(--line-strong) }
-        .pill:active{ transform: translateY(1px) }
-        .pill.is-active{
-          color:#fff;
-          border-color:#2f2f2f;
-          background: color-mix(in oklab, var(--panel) 80%, #ffffff 12%);
-          box-shadow: 0 0 0 1px rgba(255,255,255,.03) inset;
+        .gf__chip:hover{ border-color:var(--line-strong); transform:translateY(-1px) }
+        .gf__chip--on{
+          color:#b7ff8a;
+          border-color:#245026;
+          background:linear-gradient(180deg, rgba(183,255,138,.10), rgba(255,255,255,.03));
+          box-shadow:0 0 0 1px rgba(130,255,130,.12) inset, 0 0 20px rgba(130,255,130,.09);
+          transform:none;
         }
       `}</style>
-    </nav>
+    </div>
   );
 }
