@@ -1,7 +1,7 @@
 // src/components/GameFilter.tsx
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 export default function GameFilter({
@@ -9,76 +9,80 @@ export default function GameFilter({
   active,
 }: {
   games: string[];
-  active: string | null;
+  active?: string | null;
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const sp = useSearchParams();
 
-  // Costruiamo l’elenco finale: "All" + giochi (deduplicati e ordinati)
-  const items = useMemo(() => {
-    const set = new Set<string>(games.map((g) => (g || "").trim()).filter(Boolean));
-    return ["All", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
-  }, [games]);
-
-  const handleSelect = useCallback(
-    (value: string) => {
-      const params = new URLSearchParams(searchParams?.toString() || "");
-      if (value === "All") {
-        params.delete("game");
-      } else {
-        params.set("game", value);
-      }
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-      router.refresh(); // forza aggiornamento senza reload manuale
-    },
-    [pathname, router, searchParams]
+  const uniqueGames = useMemo(
+    () => Array.from(new Set((games || []).map(g => (g || "").trim()).filter(Boolean))),
+    [games]
   );
 
-  const isActive = (value: string) =>
-    (value === "All" && !active) || value === active;
+  // --- SOLO ARC RAIDERS: mostra barra informativa super-minimal
+  if (uniqueGames.length <= 1) {
+    return (
+      <div className="gf__bar" aria-live="polite">
+        <span className="dot" /> Arc Raiders only · beta
+        <style>{`
+          .gf__bar{
+            display:flex; align-items:center; gap:8px;
+            padding:6px 10px; border:1px dashed var(--line);
+            background:var(--panel); border-radius:10px;
+            font-size:12px; letter-spacing:.04em; opacity:.85;
+            width:max-content;
+          }
+          .dot{ width:6px; height:6px; border-radius:999px; background:#6bff90; box-shadow:0 0 10px rgba(107,255,144,.35); }
+        `}</style>
+      </div>
+    );
+  }
+
+  // --- MULTI-GIOCO: mostra pill minimal, aggiorna query ?game=
+  function setGame(g?: string) {
+    const params = new URLSearchParams(sp?.toString() || "");
+    if (!g) params.delete("game");
+    else params.set("game", g);
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  }
 
   return (
-    <div className="gf" role="radiogroup" aria-label="Filter by game">
-      {items.map((g) => (
+    <nav className="gf">
+      <button
+        className={`pill ${!active ? "is-active" : ""}`}
+        onClick={() => setGame(undefined)}
+      >
+        ALL
+      </button>
+      {uniqueGames.map(g => (
         <button
           key={g}
-          role="radio"
-          aria-checked={isActive(g)}
-          className={`gf__chip ${isActive(g) ? "gf__chip--on" : ""}`}
-          onClick={() => handleSelect(g)}
-          title={g === "All" ? "Show all games" : `Only ${g}`}
+          className={`pill ${active === g ? "is-active" : ""}`}
+          onClick={() => setGame(g)}
+          title={g}
         >
-          {g}
+          {g.toUpperCase()}
         </button>
       ))}
 
       <style>{`
-        .gf{
-          display:flex; gap:8px; flex-wrap:wrap;
-          padding:6px 0 2px;
+        .gf{ display:flex; gap:6px; align-items:center; flex-wrap:wrap }
+        .pill{
+          padding:6px 10px; border-radius:9px;
+          border:1px solid var(--line); background:transparent; color:#ddd;
+          font-size:11px; font-weight:800; letter-spacing:.08em;
+          cursor:pointer; transition:border-color .12s ease, background .08s ease, transform .04s ease;
+          text-transform:uppercase;
         }
-        .gf__chip{
-          -webkit-tap-highlight-color: transparent;
-          padding:6px 10px;
-          border-radius:999px;
-          border:1px solid var(--line);
-          background:var(--panel);
-          color:#d7d7d7;
-          font-weight:800; letter-spacing:.02em;
-          font-size:12px;
-          cursor:pointer;
-          transition:transform .06s ease, border-color .12s ease, background .12s ease;
-        }
-        .gf__chip:hover{ border-color:var(--line-strong); transform:translateY(-1px) }
-        .gf__chip--on{
-          color:#b7ff8a;
-          border-color:#245026;
-          background:linear-gradient(180deg, rgba(183,255,138,.10), rgba(255,255,255,.03));
-          box-shadow:0 0 0 1px rgba(130,255,130,.12) inset, 0 0 20px rgba(130,255,130,.09);
-          transform:none;
+        .pill:hover{ border-color:var(--line-strong); background:#0f0f0f }
+        .pill:active{ transform:translateY(1px) }
+        .is-active{
+          border-color:#263b2b;
+          background: linear-gradient(180deg, rgba(120,255,170,.12), rgba(120,255,170,.04));
+          color:#c8ffd8; box-shadow:0 0 0 1px rgba(120,255,170,.12) inset;
         }
       `}</style>
-    </div>
+    </nav>
   );
 }
