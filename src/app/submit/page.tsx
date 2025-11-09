@@ -23,12 +23,16 @@ export default function SubmitPage() {
     e.preventDefault();
     setMsg(null);
 
+    const urlV = url.trim();
+    const titleV = title.trim();
+    const authorV = author.trim();
+
     // Basic required validation
-    if (!url.trim() || !title.trim() || !author.trim()) {
+    if (!urlV || !titleV || !authorV) {
       setMsg({ type: 'err', text: 'Please complete all fields.' });
       return;
     }
-    if (!SAFE_URL.test(url.trim())) {
+    if (!SAFE_URL.test(urlV)) {
       setMsg({ type: 'err', text: 'For now we only accept YouTube or Twitch clip links.' });
       return;
     }
@@ -36,22 +40,22 @@ export default function SubmitPage() {
     setLoading(true);
     try {
       // DUPLICATE CHECK
-      const { data: dup } = await supabase
+      const { data: dup, error: dupErr } = await supabase
         .from('clips')
         .select('id')
-        .eq('url', url.trim())
+        .eq('url', urlV)
         .maybeSingle();
 
-      if (dup) {
+      if (!dupErr && dup) {
         setMsg({ type: 'err', text: 'This link is already on REPLAYD.' });
         return;
       }
 
       // INSERT (game fixed to Arc Raiders)
       const { error } = await supabase.from('clips').insert({
-        url: url.trim(),
-        title: title.trim(),
-        author_name: author.trim(),
+        url: urlV,
+        title: titleV,
+        author_name: authorV,
         game: 'Arc Raiders',
       });
 
@@ -74,7 +78,7 @@ export default function SubmitPage() {
 
       <p className="intro">
         REPLAYD is currently focused on <b>Arc Raiders</b>. Please submit epic moments, personal records,
-        unique plays — strictly via YouTube or Twitch clip links. All fields are required.
+        unique plays — strictly via YouTube or Twitch clip links. <b>All fields are required.</b>
       </p>
 
       <form onSubmit={onSubmit} className="stack" noValidate>
@@ -86,8 +90,9 @@ export default function SubmitPage() {
             placeholder="YouTube/Twitch URL"
             className="field"
             required
+            type="url"
             inputMode="url"
-            aria-invalid={(!url).toString()}
+            aria-invalid={!url}
           />
         </div>
 
@@ -99,7 +104,7 @@ export default function SubmitPage() {
             placeholder="Original title or a clear, accurate title"
             className="field"
             required
-            aria-invalid={(!title).toString()}
+            aria-invalid={!title}
           />
         </div>
 
@@ -111,7 +116,7 @@ export default function SubmitPage() {
             placeholder="Channel / Creator name"
             className="field"
             required
-            aria-invalid={(!author).toString()}
+            aria-invalid={!author}
           />
         </div>
 
@@ -138,12 +143,6 @@ export default function SubmitPage() {
           REPLAYD embeds links and does not host videos. Duplicate links are not allowed.
         </p>
       </div>
-
-      {msg && (
-        <div className={`notice ${msg.type === 'ok' ? 'notice--ok' : 'notice--err'}`}>
-          {msg.text}
-        </div>
-      )}
 
       <style dangerouslySetInnerHTML={{ __html: `
         .page{ display:grid; gap:16px; }
@@ -176,9 +175,7 @@ export default function SubmitPage() {
         .btn:hover{ border-color:#3a3a3a; transform:translateY(-1px) }
         .btn:disabled{ opacity:.6; cursor:not-allowed; transform:none }
 
-        .disclaimer{
-          margin-top:4px; opacity:.75; font-size:13px;
-        }
+        .disclaimer{ margin-top:4px; opacity:.75; font-size:13px; }
 
         .notice{
           margin-top:8px;
