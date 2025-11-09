@@ -2,91 +2,86 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+import { useMemo } from "react";
 
-export default function GameFilter({
-  games,
-  active,
-}: {
-  games: string[];
-  active: string | null;
-}) {
+type Props = {
+  games: string[];          // viene ignorata se vogliamo forzare una whitelist
+  active?: string | null;
+};
+
+// normalizza i nomi per confronto case-insensitive
+function norm(s: string) {
+  return (s || "").trim().toLowerCase();
+}
+
+export default function GameFilter({ games, active }: Props) {
   const router = useRouter();
-  const search = useSearchParams();
+  const searchParams = useSearchParams();
 
-  function setGame(g?: string) {
-    const params = new URLSearchParams(search?.toString() || "");
-    if (!g) params.delete("game");
-    else params.set("game", g);
-    router.push(`/?${params.toString()}`, { scroll: false });
+  // ⚠️ Per ora mostriamo SOLO "Arc Raiders" (più "All")
+  // In futuro, rimuovi la whitelist per mostrare tutti i giochi disponibili.
+  const whitelist = new Set(["arc raiders"]);
+  const list = useMemo(() => {
+    const base = ["Arc Raiders"];
+    // se vuoi includere anche altri giochi presenti nel DB in futuro, usa:
+    // const base = Array.from(new Set(games.map(g => (g || "").trim())))
+    //   .filter(Boolean)
+    //   .sort((a,b)=>a.localeCompare(b));
+    return base;
+  }, [games]);
+
+  const activeGame = active ? active : null;
+
+  function setGame(value: string | null) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (!value) params.delete("game");
+    else params.set("game", value);
+    router.replace(`?${params.toString()}`, { scroll: false });
   }
 
   return (
-    <nav className="gf-min" aria-label="Game filter">
+    <nav className="gf">
       <button
-        className={`link ${!active ? "is-active" : ""}`}
-        onClick={() => setGame(undefined)}
-        aria-current={!active ? "page" : undefined}
+        className={`pill ${!activeGame ? "is-active" : ""}`}
+        onClick={() => setGame(null)}
+        aria-pressed={!activeGame}
       >
-        all
+        ALL
       </button>
 
-      {games.map((g) => (
-        <button
-          key={g}
-          className={`link ${active === g ? "is-active" : ""}`}
-          onClick={() => setGame(g)}
-          aria-current={active === g ? "page" : undefined}
-          title={g}
-        >
-          {g}
-        </button>
-      ))}
-
+      {list
+        .filter(g => whitelist.has(norm(g)))   // rispetta la scelta “solo Arc Raiders”
+        .map((g) => {
+          const isActive = norm(activeGame || "") === norm(g);
+          return (
+            <button
+              key={g}
+              className={`pill ${isActive ? "is-active" : ""}`}
+              onClick={() => setGame(g)}
+              aria-pressed={isActive}
+            >
+              {g.toUpperCase()}
+            </button>
+          );
+        })}
       <style>{`
-        .gf-min{
-          display:flex; gap:18px;
-          overflow-x:auto; padding:2px 2px 8px;
-          -ms-overflow-style:none; scrollbar-width:none;
-          margin:2px 0 10px;
+        .gf{
+          display:flex; gap:6px; align-items:center; flex-wrap:wrap;
+          margin:6px 0 10px;
         }
-        .gf-min::-webkit-scrollbar{ display:none; }
-
-        .link{
-          position:relative;
-          font: 700 12px/1.2 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Inter;
-          color:#bdbdbd;
-          text-transform:lowercase;
-          letter-spacing:.04em;
-          background:none; border:0; padding:8px 2px;
-          cursor:pointer; white-space:nowrap;
-          transition: color .12s ease;
+        .pill{
+          appearance:none; border:1px solid var(--line);
+          background:var(--panel); color:#dcdcdc;
+          font-weight:900; letter-spacing:.12em; font-size:11px;
+          padding:6px 10px; border-radius:999px; cursor:pointer;
+          transition: border-color .12s ease, background .12s ease, transform .05s ease;
+          text-transform:uppercase;
         }
-        .link::after{
-          content:"";
-          position:absolute; left:0; right:0; bottom:2px; height:2px;
-          background: transparent;
-          border-radius:2px;
-          transform: translateY(0);
-          transition: background .12s ease, box-shadow .12s ease;
-        }
-        .link:hover{ color:#e6e6e6; }
-        .link:focus-visible{
-          outline:none;
-          box-shadow: 0 0 0 2px rgba(159,220,255,.18) inset;
-          border-radius:6px;
-        }
-        .link.is-active{
-          color:#eaf7ff;
-        }
-        .link.is-active::after{
-          background: #7cc2ff;
-          box-shadow: 0 0 14px rgba(124,194,255,.45);
-        }
-
-        /* tocchi piccoli = hit area più grande */
-        @media (max-width:700px){
-          .gf-min{ gap:14px }
-          .link{ padding:10px 2px; font-weight:800 }
+        .pill:hover{ border-color:var(--line-strong); transform:translateY(-1px) }
+        .pill.is-active{
+          border-color:#1f3242;
+          color:#9fdcff;
+          box-shadow:0 0 0 1px rgba(159,220,255,.10) inset, 0 0 18px rgba(159,220,255,.08);
         }
       `}</style>
     </nav>
