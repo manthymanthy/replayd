@@ -1,38 +1,27 @@
-// src/lib/parseClip.ts
-export type Parsed =
-  | { kind: "youtube"; id: string }
-  | { kind: "twitch-clip"; id: string }
-  | { kind: "unknown"; id: "" };
-
-export function parseClip(url: string): Parsed {
+export function parseClip(url: string) {
   try {
     const u = new URL(url);
 
-    // YouTube (watch, short, youtu.be)
-    if (u.hostname.includes("youtube.com") || u.hostname.includes("youtu.be")) {
-      // youtu.be/<id>
-      if (u.hostname === "youtu.be") {
-        const id = u.pathname.split("/")[1] || "";
-        if (id) return { kind: "youtube", id };
-      }
-      // /watch?v=<id>
-      const v = u.searchParams.get("v");
-      if (v) return { kind: "youtube", id: v };
-      // /shorts/<id>
-      if (u.pathname.startsWith("/shorts/")) {
-        const id = u.pathname.split("/")[2] || "";
-        if (id) return { kind: "youtube", id };
-      }
+    // YouTube
+    if (u.hostname.includes("youtube.com")) {
+      return { kind: "youtube", id: u.searchParams.get("v") };
+    }
+    if (u.hostname.includes("youtu.be")) {
+      return { kind: "youtube", id: u.pathname.substring(1) };
     }
 
-    // Twitch clip (clips.twitch.tv/<id>)
+    // Twitch CLIP
     if (u.hostname.includes("clips.twitch.tv")) {
-      const id = u.pathname.replace(/^\//, "");
-      if (id) return { kind: "twitch-clip", id };
+      return { kind: "twitch-clip", id: u.pathname.substring(1) };
     }
 
-    return { kind: "unknown", id: "" };
+    // Twitch VIDEO (VOD)
+    if (u.hostname.includes("twitch.tv") && u.pathname.startsWith("/videos/")) {
+      return { kind: "twitch-video", id: u.pathname.replace("/videos/", "") };
+    }
+
+    return { kind: "unknown", id: null };
   } catch {
-    return { kind: "unknown", id: "" };
+    return { kind: "unknown", id: null };
   }
 }
