@@ -1,3 +1,4 @@
+// src/components/PlayerModal.tsx
 "use client";
 
 import { useEffect } from "react";
@@ -10,7 +11,7 @@ export default function PlayerModal({
   url: string | null;
   onClose: () => void;
 }) {
-  // Chiudi con ESC e click su overlay
+  // Close on ESC
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -23,24 +24,35 @@ export default function PlayerModal({
 
   const parsed = parseClip(url);
 
-  // Costruisci src dell'iframe
+  // Build iframe src
   let src = "";
+  const parent =
+    typeof window !== "undefined" ? window.location.hostname : undefined;
+
   if (parsed.kind === "youtube") {
-    // privacy-enhanced + autoplay + controls minimal
-    src = `https://www.youtube-nocookie.com/embed/${parsed.id}?autoplay=1&rel=0&modestbranding=1`;
-  } else if (parsed.kind === "twitch-clip") {
-    // Twitch richiede il parametro "parent" = dominio corrente
-    const parent = typeof window !== "undefined" ? window.location.hostname : "localhost";
-    src = `https://clips.twitch.tv/embed?clip=${parsed.id}&parent=${encodeURIComponent(parent)}&autoplay=true`;
+    // Privacy-enhanced + autoplay + minimal UI
+    src = `https://www.youtube-nocookie.com/embed/${parsed.id}?autoplay=1&playsinline=1&rel=0&modestbranding=1`;
+  } else if (parsed.kind === "twitch-clip" && parent) {
+    // Twitch Clip embed (parent required)
+    src = `https://clips.twitch.tv/embed?clip=${parsed.id}&parent=${encodeURIComponent(
+      parent
+    )}&autoplay=true&muted=true`;
+  } else if (parsed.kind === "twitch-vod" && parent) {
+    // Twitch VOD embed (parent required)
+    // Autoplay su alcuni browser richiede muted
+    src = `https://player.twitch.tv/?video=${parsed.id}&parent=${encodeURIComponent(
+      parent
+    )}&autoplay=true&muted=true`;
   }
 
-  // Fallback se non embeddabile
   const embeddable = src.length > 0;
 
   return (
     <div className="pm__overlay" onClick={onClose}>
       <div className="pm__panel" onClick={(e) => e.stopPropagation()}>
-        <button className="pm__close" onClick={onClose} aria-label="Close">×</button>
+        <button className="pm__close" onClick={onClose} aria-label="Close">
+          ×
+        </button>
 
         {embeddable ? (
           <div className="pm__framebox">
@@ -54,15 +66,24 @@ export default function PlayerModal({
           </div>
         ) : (
           <div className="pm__fallback">
-            <p style={{ margin: 0 }}>Questo link non supporta l’embed in-app.</p>
-            <a href={url} target="_blank" rel="noopener noreferrer" className="pm__btn">
-              Apri nella sorgente ↗
+            <p style={{ margin: 0 }}>
+              This link can’t be embedded here.
+            </p>
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="pm__btn"
+            >
+              Open on source ↗
             </a>
           </div>
         )}
       </div>
 
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
         .pm__overlay{
           position:fixed; inset:0; background:rgba(0,0,0,.6);
           display:grid; place-items:center; z-index:50;
@@ -95,7 +116,9 @@ export default function PlayerModal({
           display:inline-block; padding:10px 14px; border-radius:10px;
           border:1px solid var(--line-strong); background:var(--panel); color:#fff;
         }
-      `}}/>
+      `,
+        }}
+      />
     </div>
   );
 }
