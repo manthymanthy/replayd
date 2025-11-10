@@ -10,7 +10,7 @@ const supabase = createClient(
 );
 
 // Accept only YouTube / Twitch clip links (can expand later)
-const SAFE_URL = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be|clips\.twitch\.tv|www\.twitch\.tv\/clips)/i;
+const SAFE_URL = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be|twitch\.tv)/i;
 
 export default function SubmitPage() {
   const [url, setUrl] = useState('');
